@@ -1,17 +1,45 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import axios from 'axios'
-import io from 'socket.io-client'
+import { io, Socket } from 'socket.io-client'
 
 interface ClientData {
   clientId: string
   color: string
-  position: number | null
 }
 
 const Home: React.FC = () => {
   const [clientId, setClientId] = useState('')
   const [innerClientId, setInnerClientId] = useState(clientId)
   const [clients, setClients] = useState<ClientData[]>([])
+  const s = useRef(null as Socket | null)
+
+  useEffect(() => {
+    const socket = io('localhost:4000', {
+      transports: ['websocket'], // Enable only WebSocket transport
+    })
+    if (s && socket && typeof socket !== 'undefined') {
+      s.current = socket
+    }
+    socket.on('connect', () => {
+      console.log('WebSocket connected')
+    })
+
+    socket.on('updateClients', (updatedClients: ClientData[]) => {
+      console.log('Received updated client positions:', updatedClients)
+      setClients(updatedClients)
+    })
+
+    socket.on('disconnect', () => {
+      console.log('WebSocket disconnected')
+    })
+    socket.on('message', function (e) {
+      console.log('data:', e, e.data)
+    })
+
+    return () => {
+      socket.disconnect()
+    }
+  }, [])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -30,36 +58,26 @@ const Home: React.FC = () => {
         const clients = response.data
         console.log('Client positions:', clients)
         setClients(clients)
+        s.current?.send(clients)
       } catch (error) {
         console.error('Failed to get client positions:', error)
       }
     }
 
-    if (innerClientId !== '') fetchData()
+    fetchData()
   }, [clientId])
 
-  useEffect(() => {
-    const socket = io()
-
-    socket.on('colorUpdate', (updatedClients: ClientData[]) => {
+  const updateColor = async (color: string) => {
+    try {
+      await axios.post('/api/setcolor', { clientId: innerClientId, color })
+      console.log(`Color set to ${color}`)
+      const updatedClients = clients.map((client) =>
+        client.clientId === innerClientId ? { ...client, color } : client
+      )
       setClients(updatedClients)
-    })
-
-    return () => {
-      socket.disconnect()
+    } catch (error) {
+      console.error('Failed to set color:', error)
     }
-  }, [])
-
-  const updateColor = (color: string) => {
-    const updatedClients = clients.map((client) =>
-      client.clientId === innerClientId ? { ...client, color } : client
-    )
-    setClients(updatedClients)
-    axios
-      .post('/api/setcolor', { clientId: innerClientId, color })
-      .catch((error) => {
-        console.error('Failed to set color:', error)
-      })
   }
 
   return (
@@ -95,6 +113,14 @@ const Home: React.FC = () => {
         <button onClick={() => updateColor('red')}>Set Color Red</button>
         <button onClick={() => updateColor('green')}>Set Color Green</button>
         <button onClick={() => updateColor('blue')}>Set Color Blue</button>
+
+        <button
+          onClick={() => {
+            s.current?.send({ type: 'updateClients', data: clients })
+          }}
+        >
+          Set Color Blue
+        </button>
       </div>
     </div>
   )

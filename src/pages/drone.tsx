@@ -1,25 +1,54 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
+import { io, Socket } from 'socket.io-client'
 import axios from 'axios'
 
 interface ClientData {
   clientId: string
   color: string
+  position: number | null
 }
 
 const Drone: React.FC = () => {
-  const clientId = 'droneClientId'
   const [clients, setClients] = useState<ClientData[]>([])
+  const s = useRef(null as Socket | null)
 
+  useEffect(() => {
+    const socket = io('localhost:4000', {
+      transports: ['websocket'], // Enable only WebSocket transport
+    })
+    if (s && socket && typeof socket !== 'undefined') {
+      s.current = socket
+    }
+    s.current!.on('connect', () => {
+      console.log('WebSocket connected')
+    })
+
+    s.current!.on('message', function (e) {
+      console.log('data:', e, e.data)
+    })
+
+    s.current!.on('updateClients', (updatedClients) => {
+      console.log('Received updated client positions:', updatedClients)
+      setClients(updatedClients)
+    })
+
+    s.current!.on('disconnect', () => {
+      console.log('WebSocket disconnected')
+    })
+    return () => {
+      s.current!.disconnect()
+    }
+  }, [])
   useEffect(() => {
     const fetchData = async () => {
       try {
         await axios.post('/api/register', {
-          clientId,
+          clientId: 'droneClientId',
           isDrone: true,
         })
-        console.log('Drone client registered successfully')
+        console.log('Drone Client registered successfully')
       } catch (error) {
-        console.error('Failed to register drone client:', error)
+        console.error('Failed to register client:', error)
       }
 
       try {
@@ -35,28 +64,12 @@ const Drone: React.FC = () => {
     fetchData()
   }, [])
 
-  const updateColor = async (clientId: string, color: string) => {
-    try {
-      await axios.post('/api/setcolor', {
-        clientId,
-        color,
-      })
-      console.log(`Color set to ${color} for client ${clientId}`)
-      const updatedClients = clients.map((client) =>
-        client.clientId === clientId ? { ...client, color } : client
-      )
-      setClients(updatedClients)
-    } catch (error) {
-      console.error('Failed to set color:', error)
-    }
-  }
-
   return (
     <div>
-      <h2>Drone</h2>
-      <h3>Client positions:</h3>
+      <h1>Drone Control Panel</h1>
+      <h2>Client positions:</h2>
       <ul>
-        {clients.map(({ clientId, color }) => (
+        {clients.map(({ clientId, color, position }) => (
           <li
             key={clientId}
             style={{
@@ -67,22 +80,17 @@ const Drone: React.FC = () => {
               color: '#fff',
             }}
           >
-            Client ID: {clientId}, Color: {color}
-            <div>
-              <h4>Change Color:</h4>
-              <button onClick={() => updateColor(clientId, 'red')}>
-                Set Color Red
-              </button>
-              <button onClick={() => updateColor(clientId, 'green')}>
-                Set Color Green
-              </button>
-              <button onClick={() => updateColor(clientId, 'blue')}>
-                Set Color Blue
-              </button>
-            </div>
+            Client ID: {clientId}, Color: {color}, Position: {position}
           </li>
         ))}
       </ul>
+      <button
+        onClick={() => {
+          s.current?.send({ type: 'updateClients', data: clients })
+        }}
+      >
+        Set Color Blue
+      </button>
     </div>
   )
 }
