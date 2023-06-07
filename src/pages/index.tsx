@@ -1,7 +1,6 @@
-// index.tsx
-
 import React, { useEffect, useState } from 'react'
 import axios from 'axios'
+import io from 'socket.io-client'
 
 interface ClientData {
   clientId: string
@@ -15,41 +14,52 @@ const Home: React.FC = () => {
   const [clients, setClients] = useState<ClientData[]>([])
 
   useEffect(() => {
-    // Register client
-    clientId !== '' &&
-      axios
-        .post('/api/register', { clientId, isDrone: false })
-        .then(() => console.log('Client registered successfully'))
-        .catch((error) => console.error('Failed to register client:', error))
+    const fetchData = async () => {
+      try {
+        await axios.post('/api/register', {
+          clientId: innerClientId,
+          isDrone: false,
+        })
+        console.log('Client registered successfully')
+      } catch (error) {
+        console.error('Failed to register client:', error)
+      }
 
-    // Get the positions of all clients
-    axios
-      .get<ClientData[]>('/api/getclients')
-      .then((response) => {
+      try {
+        const response = await axios.get<ClientData[]>('/api/getclients')
         const clients = response.data
         console.log('Client positions:', clients)
         setClients(clients)
-      })
-      .catch((error) => console.error('Failed to get client positions:', error))
+      } catch (error) {
+        console.error('Failed to get client positions:', error)
+      }
+    }
+
+    if (innerClientId !== '') fetchData()
   }, [clientId])
 
-  const updateColor = async (color: string, position: number | null) => {
-    try {
-      await axios.post('/api/setcolor', {
-        clientId: innerClientId,
-        color,
-        position,
-      })
-      console.log(`Color set to ${color} and position set to ${position}`)
-      const updatedClients = clients.map((client) =>
-        client.clientId === innerClientId
-          ? { ...client, color, position }
-          : client
-      )
+  useEffect(() => {
+    const socket = io()
+
+    socket.on('colorUpdate', (updatedClients: ClientData[]) => {
       setClients(updatedClients)
-    } catch (error) {
-      console.error('Failed to set color and position:', error)
+    })
+
+    return () => {
+      socket.disconnect()
     }
+  }, [])
+
+  const updateColor = (color: string) => {
+    const updatedClients = clients.map((client) =>
+      client.clientId === innerClientId ? { ...client, color } : client
+    )
+    setClients(updatedClients)
+    axios
+      .post('/api/setcolor', { clientId: innerClientId, color })
+      .catch((error) => {
+        console.error('Failed to set color:', error)
+      })
   }
 
   return (
@@ -65,7 +75,7 @@ const Home: React.FC = () => {
       <br />
       <h3>Client positions:</h3>
       <ul>
-        {clients.map(({ clientId, color, position }) => (
+        {clients.map(({ clientId, color }) => (
           <li
             key={clientId}
             style={{
@@ -76,21 +86,15 @@ const Home: React.FC = () => {
               color: '#fff',
             }}
           >
-            Client ID: {clientId}, Position: {position}
+            Client ID: {clientId}, Color: {color}
           </li>
         ))}
       </ul>
       <div>
-        <h3>Change Color and Position:</h3>
-        <button onClick={() => updateColor('red', 1)}>
-          Set Color Red, Position 1
-        </button>
-        <button onClick={() => updateColor('green', 2)}>
-          Set Color Green, Position 2
-        </button>
-        <button onClick={() => updateColor('blue', 3)}>
-          Set Color Blue, Position 3
-        </button>
+        <h3>Change Color:</h3>
+        <button onClick={() => updateColor('red')}>Set Color Red</button>
+        <button onClick={() => updateColor('green')}>Set Color Green</button>
+        <button onClick={() => updateColor('blue')}>Set Color Blue</button>
       </div>
     </div>
   )

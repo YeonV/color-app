@@ -1,21 +1,27 @@
-// drone.tsx
-
 import React, { useEffect, useState } from 'react'
 import axios from 'axios'
 
 interface ClientData {
   clientId: string
   color: string
-  position: number | null
 }
 
 const Drone: React.FC = () => {
-  const droneClientId = 'droneClientId'
+  const clientId = 'droneClientId'
   const [clients, setClients] = useState<ClientData[]>([])
 
   useEffect(() => {
-    // Fetch the positions of all clients
-    const fetchClientPositions = async () => {
+    const fetchData = async () => {
+      try {
+        await axios.post('/api/register', {
+          clientId,
+          isDrone: true,
+        })
+        console.log('Drone client registered successfully')
+      } catch (error) {
+        console.error('Failed to register drone client:', error)
+      }
+
       try {
         const response = await axios.get<ClientData[]>('/api/getclients')
         const clients = response.data
@@ -26,53 +32,22 @@ const Drone: React.FC = () => {
       }
     }
 
-    // Register drone client and fetch client positions
-    axios
-      .post('/api/register', { clientId: droneClientId, isDrone: true })
-      .then(() => {
-        console.log('Drone client registered successfully')
-        fetchClientPositions()
-      })
-      .catch((error) =>
-        console.error('Failed to register drone client:', error)
-      )
-
-    // Update individual client positions every 5 seconds
-    const interval = setInterval(async () => {
-      try {
-        for (const client of clients) {
-          const { clientId, position } = client
-          await axios.post('/api/setposition', { clientId, position })
-        }
-        fetchClientPositions()
-      } catch (error) {
-        console.error('Failed to update client positions:', error)
-      }
-    }, 5000)
-
-    return () => {
-      clearInterval(interval)
-    }
+    fetchData()
   }, [])
 
-  const updateColor = async (
-    clientId: string,
-    color: string,
-    position: number | null
-  ) => {
+  const updateColor = async (clientId: string, color: string) => {
     try {
       await axios.post('/api/setcolor', {
         clientId,
         color,
-        position,
       })
-      console.log(`Color set to ${color} and position set to ${position}`)
+      console.log(`Color set to ${color} for client ${clientId}`)
       const updatedClients = clients.map((client) =>
-        client.clientId === clientId ? { ...client, color, position } : client
+        client.clientId === clientId ? { ...client, color } : client
       )
       setClients(updatedClients)
     } catch (error) {
-      console.error('Failed to set color and position:', error)
+      console.error('Failed to set color:', error)
     }
   }
 
@@ -81,7 +56,7 @@ const Drone: React.FC = () => {
       <h2>Drone</h2>
       <h3>Client positions:</h3>
       <ul>
-        {clients.map(({ clientId, color, position }) => (
+        {clients.map(({ clientId, color }) => (
           <li
             key={clientId}
             style={{
@@ -92,16 +67,17 @@ const Drone: React.FC = () => {
               color: '#fff',
             }}
           >
-            Client ID: {clientId}, Position: {position}
+            Client ID: {clientId}, Color: {color}
             <div>
-              <button onClick={() => updateColor(clientId, 'red', 1)}>
-                Set Color Red, Position 1
+              <h4>Change Color:</h4>
+              <button onClick={() => updateColor(clientId, 'red')}>
+                Set Color Red
               </button>
-              <button onClick={() => updateColor(clientId, 'green', 2)}>
-                Set Color Green, Position 2
+              <button onClick={() => updateColor(clientId, 'green')}>
+                Set Color Green
               </button>
-              <button onClick={() => updateColor(clientId, 'blue', 3)}>
-                Set Color Blue, Position 3
+              <button onClick={() => updateColor(clientId, 'blue')}>
+                Set Color Blue
               </button>
             </div>
           </li>
