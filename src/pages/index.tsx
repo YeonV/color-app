@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react'
-import axios from 'axios'
 import { io, Socket } from 'socket.io-client'
+import axios from 'axios'
 
 interface ClientData {
   clientId: string
@@ -11,32 +11,49 @@ const Home: React.FC = () => {
   const [clientId, setClientId] = useState('')
   const [innerClientId, setInnerClientId] = useState(clientId)
   const [clients, setClients] = useState<ClientData[]>([])
-  const s = useRef(null as Socket | null)
+  const [message, setMessage] = useState('')
+  const s = useRef<Socket | null>(null)
 
   useEffect(() => {
+    let isMounted = true
+
     const socket = io('localhost:4000', {
-      transports: ['websocket'], // Enable only WebSocket transport
+      transports: ['websocket'],
     })
+
     if (s && socket && typeof socket !== 'undefined') {
       s.current = socket
     }
+
     socket.on('connect', () => {
       console.log('WebSocket connected')
     })
 
     socket.on('updateClients', (updatedClients: ClientData[]) => {
       console.log('Received updated client positions:', updatedClients)
-      setClients(updatedClients)
+      if (isMounted && updatedClients.length > 0) {
+        setClients(updatedClients)
+      }
+    })
+
+    socket.on('colorChange', (updatedData: ClientData) => {
+      setClients((prevClients) =>
+        prevClients.map((client) =>
+          client.clientId === updatedData.clientId ? updatedData : client
+        )
+      )
     })
 
     socket.on('disconnect', () => {
       console.log('WebSocket disconnected')
     })
-    socket.on('message', function (e) {
-      console.log('data:', e, e.data)
+
+    socket.on('message', (e: any) => {
+      console.log('Received message:', e)
     })
 
     return () => {
+      isMounted = false
       socket.disconnect()
     }
   }, [])
@@ -55,73 +72,95 @@ const Home: React.FC = () => {
 
       try {
         const response = await axios.get<ClientData[]>('/api/getclients')
-        const clients = response.data
-        console.log('Client positions:', clients)
-        setClients(clients)
-        s.current?.send(clients)
+        const clientsres = response.data
+        console.log('Client positions:', clientsres)
+        if (clientsres.length) setClients(clientsres)
+        s.current?.emit('updateClients', innerClientId)
       } catch (error) {
         console.error('Failed to get client positions:', error)
       }
     }
 
     fetchData()
-  }, [clientId])
+  }, [innerClientId])
 
   const updateColor = async (color: string) => {
     try {
-      await axios.post('/api/setcolor', { clientId: innerClientId, color })
-      console.log(`Color set to ${color}`)
       const updatedClients = clients.map((client) =>
         client.clientId === innerClientId ? { ...client, color } : client
       )
-      setClients(updatedClients)
+      if (updatedClients.length > 0) setClients(updatedClients)
+      s.current?.emit('colorUpdate', { clientId: innerClientId, color })
+      console.log(`Color set to ${color}`)
     } catch (error) {
       console.error('Failed to set color:', error)
     }
   }
 
+  const sendMessage = () => {
+    s.current?.emit('message', message)
+    setMessage('')
+  }
+
+  const clearClients = async () => {
+    try {
+      await axios.post('/api/clearclients')
+      setClients([])
+      console.log('Cleared all clients')
+    } catch (error) {
+      console.error('Failed to clear clients:', error)
+    }
+  }
+
+  const clearClient = async (clientId: string) => {
+    try {
+      await axios.post('/api/clearclient', { clientId })
+      setClients((prevClients) =>
+        prevClients.filter((client) => client.clientId !== clientId)
+      )
+      console.log(`Cleared client with ID: ${clientId}`)
+    } catch (error) {
+      console.error('Failed to clear client:', error)
+    }
+  }
+
   return (
     <div>
-      <h2>Client</h2>
-      <label>Client ID: </label>
+      <h2>Home</h2>
+      <h3>Client ID:</h3>
       <input
         type='text'
-        value={innerClientId}
-        onChange={(e) => setInnerClientId(e.target.value)}
-        onBlur={(e) => setClientId(innerClientId)}
+        value={clientId}
+        onChange={(e) => setClientId(e.target.value)}
       />
-      <br />
-      <h3>Client positions:</h3>
+      <button onClick={() => setInnerClientId(clientId)}>Set</button>
       <ul>
-        {clients.map(({ clientId, color }) => (
+        {clients.map((client) => (
           <li
-            key={clientId}
-            style={{
-              backgroundColor: color,
-              padding: '1rem',
-              marginBottom: '0.5rem',
-              borderRadius: '4px',
-              color: '#fff',
-            }}
+            key={client.clientId}
+            style={{ backgroundColor: client.color, padding: '5px' }}
           >
-            Client ID: {clientId}, Color: {color}
+            {client.clientId}
+            {innerClientId === client.clientId && (
+              <button onClick={() => clearClient(client.clientId)}>
+                Clear
+              </button>
+            )}
           </li>
         ))}
       </ul>
-      <div>
-        <h3>Change Color:</h3>
-        <button onClick={() => updateColor('red')}>Set Color Red</button>
-        <button onClick={() => updateColor('green')}>Set Color Green</button>
-        <button onClick={() => updateColor('blue')}>Set Color Blue</button>
-
-        <button
-          onClick={() => {
-            s.current?.send({ type: 'updateClients', data: clients })
-          }}
-        >
-          Set Color Blue
-        </button>
-      </div>
+      <h3>Color:</h3>
+      <button onClick={() => updateColor('red')}>Red</button>
+      <button onClick={() => updateColor('green')}>Green</button>
+      <button onClick={() => updateColor('blue')}>Blue</button>
+      <br />
+      <h3>Send Message:</h3>
+      <input
+        type='text'
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+      />
+      <button onClick={sendMessage}>Send</button>
     </div>
   )
 }

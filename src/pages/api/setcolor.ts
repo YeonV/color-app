@@ -16,7 +16,6 @@ export default (req: NextApiRequest, res: NextApiResponse): void => {
   const { clientId, color, position } = req.body
 
   const droneClientId = cache.get('droneClientId')
-  console.log('eyyy', clientId, droneClientId)
 
   const clientToUpdate = cache.get(clientId) as Client
 
