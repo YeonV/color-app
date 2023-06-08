@@ -31,15 +31,22 @@ io.on('connection', (socket) => {
     })
   })
 
-  socket.on('colorUpdate', (data: { clientId: string; color: string }) => {
+  socket.on('colorUpdate', (data) => {
     console.log('Color update received:', data)
-    const clientData = cache.get(data.clientId)
-    const keyss = cache.keys()
-    console.log('1: clientData', data, clientData, keyss)
+    const clientData = cache.get(data.data.clientId)
     if (clientData) {
-      clientData.color = data.color
-      cache.put(data.clientId, clientData)
+      clientData.color = data.data.color
+      cache.put(data.data.clientId, clientData)
+      console.log('wtf', clientData)
       io.emit('colorChange', clientData) // Emit the updated client data to all clients
+      // socket.emit('colorChange', clientData) // Emit the updated clients list to the emitting client
+      // socket.send('colorChange', clientData) // Emit the updated clients list to the emitting client
+      // socket.broadcast.emit('colorChange', clientData)
+    } else {
+      io.emit('colorChange', data.data) // Emit the updated client data to all clients
+      // socket.emit('colorChange', data.data) // Emit the updated clients list to the emitting client
+      // socket.send('colorChange', data.data) // Emit the updated clients list to the emitting client
+      // socket.broadcast.emit('colorChange', data.data)
     }
   })
 
@@ -57,34 +64,36 @@ io.on('connection', (socket) => {
   )
 
   socket.on('updateClients', (clientId: string) => {
-    console.log('Update clients received:', clientId)
-    let clients = [
-      ...Array.from(cache.keys())
-        .filter((key) => key !== clientId)
-        .map((key) => cache.get(key)),
-    ]
-    if (clients.length < 1 && clientId) {
-      clients = [
-        {
-          clientId: clientId,
-          color: '#800000',
-          position: 1,
-        },
+    if (clientId) {
+      console.log('Update clients received:', clientId)
+      let clients = [
+        ...Array.from(cache.keys())
+          .filter((key) => key !== clientId)
+          .map((key) => cache.get(key)),
       ]
+      // if (clients.length < 1 && clientId) {
+      //   clients = [
+      //     {
+      //       clientId: clientId,
+      //       color: '#800000',
+      //       position: 1,
+      //     },
+      //   ]
+      // }
+
+      // cache.keys().map((k) =>
+      //   cache.put(k, {
+      //     clientId: k,
+      //     color: cache.get(k).color,
+      //     position: cache.get(k).position,
+      //   })
+      // )
+      console.log('yy', clients, clientId, cache.keys())
+      io.emit('updateClients', clients) // Emit the updated clients list to the emitting client
+      socket.emit('updateClients', clients) // Emit the updated clients list to the emitting client
+      socket.send('updateClients', clients) // Emit the updated clients list to the emitting client
+      socket.broadcast.emit('updateClients', clients) // Emit the updated clients list to all other clients
     }
-    if (clientId)
-      cache.keys().map((k) =>
-        cache.put(k, {
-          clientId: k,
-          color: cache.get(k).color,
-          position: cache.get(k).position,
-        })
-      )
-    console.log('yy', clients, clientId, cache.keys())
-    io.emit('updateClients', clients) // Emit the updated clients list to the emitting client
-    socket.emit('updateClients', clients) // Emit the updated clients list to the emitting client
-    socket.send('updateClients', clients) // Emit the updated clients list to the emitting client
-    socket.broadcast.emit('updateClients', clients) // Emit the updated clients list to all other clients
   })
 
   socket.on('disconnect', () => {

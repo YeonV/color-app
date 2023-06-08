@@ -27,13 +27,21 @@ io.on('connection', (socket) => {
     });
     socket.on('colorUpdate', (data) => {
         console.log('Color update received:', data);
-        const clientData = memory_cache_1.default.get(data.clientId);
-        const keyss = memory_cache_1.default.keys();
-        console.log('1: clientData', data, clientData, keyss);
+        const clientData = memory_cache_1.default.get(data.data.clientId);
         if (clientData) {
-            clientData.color = data.color;
-            memory_cache_1.default.put(data.clientId, clientData);
+            clientData.color = data.data.color;
+            memory_cache_1.default.put(data.data.clientId, clientData);
+            console.log('wtf', clientData);
             io.emit('colorChange', clientData); // Emit the updated client data to all clients
+            // socket.emit('colorChange', clientData) // Emit the updated clients list to the emitting client
+            // socket.send('colorChange', clientData) // Emit the updated clients list to the emitting client
+            // socket.broadcast.emit('colorChange', clientData)
+        }
+        else {
+            io.emit('colorChange', data.data); // Emit the updated client data to all clients
+            // socket.emit('colorChange', data.data) // Emit the updated clients list to the emitting client
+            // socket.send('colorChange', data.data) // Emit the updated clients list to the emitting client
+            // socket.broadcast.emit('colorChange', data.data)
         }
     });
     socket.on('positionUpdate', (data) => {
@@ -46,32 +54,35 @@ io.on('connection', (socket) => {
         }
     });
     socket.on('updateClients', (clientId) => {
-        console.log('Update clients received:', clientId);
-        let clients = [
-            ...Array.from(memory_cache_1.default.keys())
-                .filter((key) => key !== clientId)
-                .map((key) => memory_cache_1.default.get(key)),
-        ];
-        if (clients.length < 1 && clientId) {
-            clients = [
-                {
-                    clientId: clientId,
-                    color: '#800000',
-                    position: 1,
-                },
+        if (clientId) {
+            console.log('Update clients received:', clientId);
+            let clients = [
+                ...Array.from(memory_cache_1.default.keys())
+                    .filter((key) => key !== clientId)
+                    .map((key) => memory_cache_1.default.get(key)),
             ];
+            // if (clients.length < 1 && clientId) {
+            //   clients = [
+            //     {
+            //       clientId: clientId,
+            //       color: '#800000',
+            //       position: 1,
+            //     },
+            //   ]
+            // }
+            // cache.keys().map((k) =>
+            //   cache.put(k, {
+            //     clientId: k,
+            //     color: cache.get(k).color,
+            //     position: cache.get(k).position,
+            //   })
+            // )
+            console.log('yy', clients, clientId, memory_cache_1.default.keys());
+            io.emit('updateClients', clients); // Emit the updated clients list to the emitting client
+            socket.emit('updateClients', clients); // Emit the updated clients list to the emitting client
+            socket.send('updateClients', clients); // Emit the updated clients list to the emitting client
+            socket.broadcast.emit('updateClients', clients); // Emit the updated clients list to all other clients
         }
-        if (clientId)
-            memory_cache_1.default.keys().map((k) => memory_cache_1.default.put(k, {
-                clientId: k,
-                color: memory_cache_1.default.get(k).color,
-                position: memory_cache_1.default.get(k).position,
-            }));
-        console.log('yy', clients, clientId, memory_cache_1.default.keys());
-        io.emit('updateClients', clients); // Emit the updated clients list to the emitting client
-        socket.emit('updateClients', clients); // Emit the updated clients list to the emitting client
-        socket.send('updateClients', clients); // Emit the updated clients list to the emitting client
-        socket.broadcast.emit('updateClients', clients); // Emit the updated clients list to all other clients
     });
     socket.on('disconnect', () => {
         console.log('A client disconnected:', socket.id);

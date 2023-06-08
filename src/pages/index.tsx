@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { io, Socket } from 'socket.io-client'
 import axios from 'axios'
+import styles from './styles.module.css' // Import CSS module styles
 
 interface ClientData {
   clientId: string
@@ -90,7 +91,9 @@ const Home: React.FC = () => {
         client.clientId === innerClientId ? { ...client, color } : client
       )
       if (updatedClients.length > 0) setClients(updatedClients)
-      s.current?.emit('colorUpdate', { clientId: innerClientId, color })
+      s.current?.emit('colorUpdate', {
+        data: { clientId: innerClientId, color },
+      })
       console.log(`Color set to ${color}`)
     } catch (error) {
       console.error('Failed to set color:', error)
@@ -125,42 +128,78 @@ const Home: React.FC = () => {
   }
 
   return (
-    <div>
-      <h2>Home</h2>
-      <h3>Client ID:</h3>
-      <input
-        type='text'
-        value={clientId}
-        onChange={(e) => setClientId(e.target.value)}
-      />
-      <button onClick={() => setInnerClientId(clientId)}>Set</button>
-      <ul>
-        {clients.map((client) => (
-          <li
-            key={client.clientId}
-            style={{ backgroundColor: client.color, padding: '5px' }}
+    <div className={styles.container}>
+      <h2 className={styles.title}>Client</h2>
+      <div className={styles.content}>
+        <div className={styles.inputContainer}>
+          <h3 className={styles.subtitle}>Client ID:</h3>
+          <input
+            type='text'
+            value={clientId}
+            onChange={(e) => setClientId(e.target.value)}
+            className={styles.input}
+          />
+          <button
+            className={styles.button}
+            onClick={() => setInnerClientId(clientId)}
           >
-            {client.clientId}
-            {innerClientId === client.clientId && (
-              <button onClick={() => clearClient(client.clientId)}>
-                Clear
-              </button>
-            )}
-          </li>
-        ))}
-      </ul>
-      <h3>Color:</h3>
-      <button onClick={() => updateColor('red')}>Red</button>
-      <button onClick={() => updateColor('green')}>Green</button>
-      <button onClick={() => updateColor('blue')}>Blue</button>
-      <br />
-      <h3>Send Message:</h3>
-      <input
-        type='text'
-        value={message}
-        onChange={(e) => setMessage(e.target.value)}
-      />
-      <button onClick={sendMessage}>Send</button>
+            Set
+          </button>
+        </div>
+        <ul className={styles.clientList}>
+          {clients.map((client) => (
+            <li
+              key={client.clientId}
+              style={{ backgroundColor: client.color }}
+              className={styles.clientItem}
+            >
+              {client.clientId}
+              {innerClientId === client.clientId && (
+                <>
+                  <div className={styles.colorContainer}>
+                    <button
+                      className={`${styles.colorButton} ${styles.red}`}
+                      onClick={() => updateColor('red')}
+                    >
+                      Red
+                    </button>
+                    <button
+                      className={`${styles.colorButton} ${styles.green}`}
+                      onClick={() => updateColor('green')}
+                    >
+                      Green
+                    </button>
+                    <button
+                      className={`${styles.colorButton} ${styles.blue}`}
+                      onClick={() => updateColor('blue')}
+                    >
+                      Blue
+                    </button>
+                  </div>
+                  <button
+                    className={styles.button}
+                    onClick={() => clearClient(client.clientId)}
+                  >
+                    Clear
+                  </button>
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className={styles.messageContainer}>
+        <h3 className={styles.subtitle}>Send Message:</h3>
+        <input
+          type='text'
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          className={styles.input}
+        />
+        <button className={styles.button} onClick={sendMessage}>
+          Send
+        </button>
+      </div>
     </div>
   )
 }
