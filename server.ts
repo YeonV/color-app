@@ -38,15 +38,10 @@ io.on('connection', (socket) => {
       clientData.color = data.data.color
       cache.put(data.data.clientId, clientData)
       console.log('wtf', clientData)
-      io.emit('colorChange', clientData) // Emit the updated client data to all clients
-      // socket.emit('colorChange', clientData) // Emit the updated clients list to the emitting client
-      // socket.send('colorChange', clientData) // Emit the updated clients list to the emitting client
-      // socket.broadcast.emit('colorChange', clientData)
+      io.emit('colorChange', clientData)
     } else {
-      io.emit('colorChange', data.data) // Emit the updated client data to all clients
-      // socket.emit('colorChange', data.data) // Emit the updated clients list to the emitting client
-      // socket.send('colorChange', data.data) // Emit the updated clients list to the emitting client
-      // socket.broadcast.emit('colorChange', data.data)
+      // cache.put(data.data.clientId, data.data)
+      io.emit('colorChange', data.data)
     }
   })
 

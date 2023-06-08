@@ -113,57 +113,59 @@ const Drone: React.FC = () => {
   return (
     <div className={styles.container}>
       <h2 className={styles.title}>Control</h2>
-      <div>
+      <div className={styles.content}>
         <div className={styles.inputContainer}>
           <button className={styles.button} onClick={clearClients}>
             Clear Clients
           </button>
         </div>
         <ul className={styles.clientList}>
-          {clients.map((client) => (
+          {clients.map((client, index) => (
             <li
               className={styles.clientItem}
               key={client.clientId}
               style={{ backgroundColor: client.color }}
             >
               <span className={styles.clientId}>{client.clientId}</span>
-              <div className={styles.buttonContainer}>
-                <button
-                  className={`${styles.colorButton} ${styles.red}`}
-                  onClick={() => updateColor(client.clientId, 'red')}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <div
+                  style={{
+                    border: '2px solid #DDD',
+                    marginRight: '0.5rem',
+                    height: '28px',
+                    borderRadius: '4px',
+                  }}
                 >
-                  Red
-                </button>
-                <button
-                  className={`${styles.colorButton} ${styles.green}`}
-                  onClick={() => updateColor(client.clientId, 'green')}
-                >
-                  Green
-                </button>
-                <button
-                  className={`${styles.colorButton} ${styles.blue}`}
-                  onClick={() => updateColor(client.clientId, 'blue')}
-                >
-                  Blue
-                </button>
-                <button
+                  <input
+                    className={styles.iconpicker}
+                    style={{ backgroundColor: client.color }}
+                    type='color'
+                    defaultValue={client.color}
+                    onChange={(e) =>
+                      updateColor(client.clientId, e.target.value)
+                    }
+                  />
+                </div>
+                <select
+                  onChange={(e) =>
+                    updatePosition(client.clientId, JSON.parse(e.target.value))
+                  }
                   className={styles.button}
-                  onClick={() => updatePosition(client.clientId, 1)}
+                  style={{ padding: '7px 16px' }}
+                  defaultValue={index + 1}
                 >
-                  Position 1
-                </button>
-                <button
-                  className={styles.button}
-                  onClick={() => updatePosition(client.clientId, 2)}
-                >
-                  Position 2
-                </button>
-                <button
-                  className={styles.button}
-                  onClick={() => updatePosition(client.clientId, 3)}
-                >
-                  Position 3
-                </button>
+                  {clients.map((c, i) => (
+                    <option key={i} value={i + 1}>
+                      {i + 1}
+                    </option>
+                  ))}
+                </select>
                 <button
                   className={styles.button}
                   style={{ marginLeft: '0.5rem' }}

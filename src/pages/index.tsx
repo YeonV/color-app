@@ -9,7 +9,7 @@ interface ClientData {
 }
 
 const Home: React.FC = () => {
-  const [clientId, setClientId] = useState('')
+  const [clientId, setClientId] = useState('Blade')
   const [innerClientId, setInnerClientId] = useState(clientId)
   const [clients, setClients] = useState<ClientData[]>([])
   const [message, setMessage] = useState('')
@@ -157,31 +157,29 @@ const Home: React.FC = () => {
               {innerClientId === client.clientId && (
                 <>
                   <div className={styles.colorContainer}>
-                    <button
-                      className={`${styles.colorButton} ${styles.red}`}
-                      onClick={() => updateColor('red')}
+                    <div
+                      style={{
+                        border: '2px solid #DDD',
+                        marginRight: '0.5rem',
+                        height: '28px',
+                        borderRadius: '4px',
+                      }}
                     >
-                      Red
-                    </button>
+                      <input
+                        className={styles.iconpicker}
+                        style={{ backgroundColor: client.color }}
+                        type='color'
+                        defaultValue={client.color}
+                        onChange={(e) => updateColor(e.target.value)}
+                      />
+                    </div>
                     <button
-                      className={`${styles.colorButton} ${styles.green}`}
-                      onClick={() => updateColor('green')}
+                      className={styles.button}
+                      onClick={() => clearClient(client.clientId)}
                     >
-                      Green
-                    </button>
-                    <button
-                      className={`${styles.colorButton} ${styles.blue}`}
-                      onClick={() => updateColor('blue')}
-                    >
-                      Blue
+                      X
                     </button>
                   </div>
-                  <button
-                    className={styles.button}
-                    onClick={() => clearClient(client.clientId)}
-                  >
-                    Clear
-                  </button>
                 </>
               )}
             </li>

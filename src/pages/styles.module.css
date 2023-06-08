@@ -6,6 +6,7 @@
     height: 100vh;
     font-family: Arial, sans-serif;
     max-width: 720px;
+    width: 100%;
     margin: 0 auto;
   }
 .content {
@@ -62,6 +63,30 @@
     font-weight: bold;
     cursor: pointer;
     font-size: 14px;
+  }
+  .iconpicker {
+    height: 28px;
+    padding: 0;
+    border: none;
+    border-radius: 0px;
+    color: #fff;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 14px;
+    border: 1px solid white;
+    margin: 0;
+  }
+  input.iconpicker[type="color"]::-moz-color-swatch {
+    border: none;
+  }
+  
+  input.iconpicker[type="color"]::-webkit-color-swatch-wrapper {
+    padding: 0;
+    border-radius: 0;
+  }
+  
+  input.iconpicker[type="color"]::-webkit-color-swatch {
+    border: none;
   }
   
   .clientList {
