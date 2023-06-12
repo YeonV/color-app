@@ -1,11 +1,16 @@
+// pages/index.tsx
+
+// ClientS
+
 import React, { useEffect, useState, useRef } from 'react'
 import { io, Socket } from 'socket.io-client'
-import styles from './styles.module.css' // Import CSS module styles
+import styles from '../pages/styles.module.css'
 import cache from 'memory-cache'
 
 interface ClientData {
   clientId: string
   color: string
+  position: number | null
 }
 interface Client {
   clientId: string
@@ -39,7 +44,8 @@ const Home = ({
 }) => {
   const [clientId, setClientId] = useState('Blade')
   const [innerClientId, setInnerClientId] = useState(clientId)
-  const [clients, setClients] = useState<ClientData[]>(clientsyz)
+  const [clients, setClients] = useState<ClientData[]>(clientsyz.filter((key: any) => key !== 'droneClientId')
+  .filter((key: any) => key !== 'Blade'))
   const [message, setMessage] = useState('')
   const s = useRef<Socket | null>(null)
 
@@ -67,6 +73,14 @@ const Home = ({
     })
 
     socket.on('colorChange', (updatedData: ClientData) => {
+      setClients((prevClients) =>
+        prevClients.map((client) =>
+          client.clientId === updatedData.clientId ? updatedData : client
+        )
+      )
+    })
+    socket.on('positionChange', (updatedData: ClientData) => {
+      console.log("YES",updatedData)
       setClients((prevClients) =>
         prevClients.map((client) =>
           client.clientId === updatedData.clientId ? updatedData : client
@@ -119,9 +133,11 @@ const Home = ({
     s.current?.emit('clearClient', clientId)
   }
 
+  console.log(clients)
+
   return (
     <div className={styles.container}>
-      <h2 className={styles.title}>Client</h2>
+      <h2 className={styles.title}>Clients</h2>
       <div className={styles.content}>
         <div className={styles.inputContainer}>
           <h3 className={styles.subtitle}>Client ID:</h3>
@@ -139,13 +155,17 @@ const Home = ({
           </button>
         </div>
         <ul className={styles.clientList}>
-          {clients.filter((c,i) => ['Blade', 'droneClientId'].indexOf(c.clientId) === -1).map((client) => (
+          {clients.sort((a,b) => (a.position || 0) - (b.position || 0)).map((client) => (
             <li
               key={client.clientId}
               style={{ backgroundColor: client.color }}
               className={styles.clientItem}
+              onClick={()=>{
+                setInnerClientId(client.clientId)
+                setClientId(client.clientId)
+              }}
             >
-              {client.clientId}
+              {client.clientId} - {client.position}
               {innerClientId === client.clientId && (
                 <>
                   <div className={styles.colorContainer}>

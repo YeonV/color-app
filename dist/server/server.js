@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+// server.ts
 const http_1 = __importDefault(require("http"));
 const socket_io_1 = require("socket.io");
 const memory_cache_1 = __importDefault(require("memory-cache"));
@@ -12,7 +13,7 @@ const io = new socket_io_1.Server(server, {
         origin: '*',
         methods: ['GET', 'POST'],
     },
-    transports: ['websocket'], // Enable only WebSocket transport
+    transports: ['websocket'],
 });
 function getRandomColor() {
     const letters = '0123456789ABCDEF';
@@ -22,73 +23,64 @@ function getRandomColor() {
     }
     return color;
 }
+let clients = []; // Array to store client data
 io.on('connection', (socket) => {
     console.log('A client connected:', socket.id);
     socket.on('register', (clientId) => {
         console.log('Client registered:', clientId);
         socket.join(clientId);
-        io.to(clientId).emit('hello'); // Send 'hello' event to the client
+        io.to(clientId).emit('hello');
         const previousState = memory_cache_1.default.get(clientId);
-        memory_cache_1.default.put(clientId, {
+        const clientData = {
             clientId,
             color: previousState?.color || getRandomColor(),
-            position: null,
-        });
-        let clients = [
-            ...Array.from(memory_cache_1.default.keys())
-                .map((key) => memory_cache_1.default.get(key)),
-        ];
-        io.emit('updateClients', clients);
+            position: previousState?.position || 0,
+        };
+        memory_cache_1.default.put(clientId, clientData);
+        const index = clients.findIndex((client) => client.clientId === clientId);
+        if (index !== -1) {
+            clients[index] = clientData;
+        }
+        else {
+            clients.push(clientData);
+        }
+        io.emit('updateClients', filterClients()); // Emit filtered clients
     });
     socket.on('clearAll', () => {
-        console.log('clearAll Clients:');
+        console.log('Clearing all clients:');
         memory_cache_1.default.clear();
-        io.emit('updateClients', []);
+        clients = [];
+        io.emit('updateClients', filterClients()); // Emit filtered clients
     });
     socket.on('clearClient', (clientId) => {
-        console.log('clearAll Clients:');
-        let clients = [
-            ...Array.from(memory_cache_1.default.keys())
-                .filter((key) => key !== clientId)
-                .map((key) => memory_cache_1.default.get(key)),
-        ];
+        console.log('Clearing client:', clientId);
         memory_cache_1.default.del(clientId);
-        io.emit('updateClients', clients);
+        clients = clients.filter((client) => client.clientId !== clientId);
+        io.emit('updateClients', filterClients()); // Emit filtered clients
     });
     socket.on('colorUpdate', (data) => {
         console.log('Color update received:', data);
         const clientData = memory_cache_1.default.get(data.data.clientId);
         if (clientData) {
-            clientData.color = data.data.color;
+            if (data.data.color)
+                clientData.color = data.data.color;
+            if (data.data.position)
+                clientData.position = data.data.position;
             memory_cache_1.default.put(data.data.clientId, clientData);
             io.emit('colorChange', clientData);
         }
         else {
             memory_cache_1.default.put(data.data.clientId, data.data);
-            // io.emit('colorChange', data.data)
+            io.emit('colorChange', data.data);
         }
     });
     socket.on('positionUpdate', (data) => {
         console.log('Position update received:', data);
-        const clientData = memory_cache_1.default.get(data.clientId);
+        const clientData = memory_cache_1.default.get(data.data.clientId);
         if (clientData) {
-            clientData.position = data.position;
-            memory_cache_1.default.put(data.clientId, clientData);
-            io.emit('positionChange', clientData); // Emit the updated client data to all clients
-        }
-    });
-    socket.on('updateClients', (clientId) => {
-        if (clientId) {
-            console.log('Update clients received:', clientId);
-            let clients = [
-                ...Array.from(memory_cache_1.default.keys())
-                    // .filter((key) => key !== clientId)
-                    .map((key) => memory_cache_1.default.get(key)),
-            ];
-            io.emit('updateClients', clients); // Emit the updated clients list to the emitting client
-            socket.emit('updateClients', clients); // Emit the updated clients list to the emitting client
-            socket.send('updateClients', clients); // Emit the updated clients list to the emitting client
-            socket.broadcast.emit('updateClients', clients); // Emit the updated clients list to all other clients
+            clientData.position = data.data.position;
+            memory_cache_1.default.put(data.data.clientId, clientData);
+            io.emit('positionChange', clientData);
         }
     });
     socket.on('disconnect', () => {
@@ -99,6 +91,9 @@ io.on('connection', (socket) => {
         io.emit('GotData:', e);
     });
 });
+function filterClients() {
+    return clients.filter((client) => client.clientId !== 'droneClientId' && client.clientId !== 'Blade');
+}
 const PORT = 4000;
 server.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);

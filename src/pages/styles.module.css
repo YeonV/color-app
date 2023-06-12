@@ -109,6 +109,7 @@
     background-color: #007AFF;
     min-height: 60px;
     padding: 0 1rem;
+    cursor: pointer;
   }
   
   .colorContainer {

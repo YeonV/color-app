@@ -1,11 +1,14 @@
+// pages/drone.tsx
+
 import React, { useEffect, useState, useRef } from 'react'
 import { io, Socket } from 'socket.io-client'
-import styles from './styles.module.css' // Import CSS module styles
+import styles from '../pages/styles.module.css'
 import cache from 'memory-cache'
 
 interface ClientData {
   clientId: string
   color: string
+  position: number | null
 }
 
 interface Client {
@@ -131,7 +134,7 @@ const Drone = ({
           </button>
         </div>
         <ul className={styles.clientList}>
-          {clients.filter((c,i) => ['Blade', 'droneClientId'].indexOf(c.clientId) === -1).map((client, index) => (
+          {clients.sort((a,b) => (a.position || 0) - (b.position || 0)).map((client, index) => (
             <li
               className={styles.clientItem}
               key={client.clientId}
@@ -169,7 +172,7 @@ const Drone = ({
                   }
                   className={styles.button}
                   style={{ padding: '7px 16px' }}
-                  defaultValue={index + 1}
+                  defaultValue={client.position || index + 1}
                 >
                   {clients.map((c, i) => (
                     <option key={i} value={i + 1}>

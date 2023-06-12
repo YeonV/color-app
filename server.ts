@@ -1,121 +1,117 @@
-import http from 'http'
-import { Server as SocketServer } from 'socket.io'
-import cache from 'memory-cache'
+// server.ts
+import http from 'http';
+import { Server as SocketServer } from 'socket.io';
+import cache from 'memory-cache';
 
 interface ClientData {
-  clientId: string
-  color: string
-  position: number | null
+  clientId: string;
+  color: string;
+  position: number | null;
 }
 
-const server = http.createServer()
+const server = http.createServer();
 const io = new SocketServer(server, {
   cors: {
     origin: '*',
     methods: ['GET', 'POST'],
   },
-  transports: ['websocket'], // Enable only WebSocket transport
-})
+  transports: ['websocket'],
+});
 
 function getRandomColor(): string {
-  const letters = '0123456789ABCDEF'
-  let color = '#'
+  const letters = '0123456789ABCDEF';
+  let color = '#';
   for (let i = 0; i < 6; i++) {
-    color += letters[Math.floor(Math.random() * 16)]
+    color += letters[Math.floor(Math.random() * 16)];
   }
-  return color
+  return color;
 }
 
+let clients: ClientData[] = []; // Array to store client data
+
 io.on('connection', (socket) => {
-  console.log('A client connected:', socket.id)
+  console.log('A client connected:', socket.id);
 
   socket.on('register', (clientId: string) => {
-    console.log('Client registered:', clientId)
-    socket.join(clientId)
-    io.to(clientId).emit('hello') // Send 'hello' event to the client
-    const previousState = cache.get(clientId)
-    cache.put(clientId, {
+    console.log('Client registered:', clientId);
+    socket.join(clientId);
+    io.to(clientId).emit('hello');
+
+    const previousState = cache.get(clientId);
+    const clientData: ClientData = {
       clientId,
       color: previousState?.color || getRandomColor(),
-      position: null,
-    })
-    let clients = [
-      ...Array.from(cache.keys())
-        .map((key) => cache.get(key)),
-    ]
-    io.emit('updateClients', clients)
-  })
+      position: previousState?.position || 0,
+    };
+    cache.put(clientId, clientData);
+
+    const index = clients.findIndex((client) => client.clientId === clientId);
+    if (index !== -1) {
+      clients[index] = clientData;
+    } else {
+      clients.push(clientData);
+    }
+
+    io.emit('updateClients', filterClients()); // Emit filtered clients
+  });
+
   socket.on('clearAll', () => {
-    console.log('clearAll Clients:')
-    cache.clear()
-    io.emit('updateClients', [])
-  })
+    console.log('Clearing all clients:');
+    cache.clear();
+    clients = [];
+    io.emit('updateClients', filterClients()); // Emit filtered clients
+  });
+
   socket.on('clearClient', (clientId: string) => {
-    console.log('clearAll Clients:')
-    let clients = [
-      ...Array.from(cache.keys())
-        .filter((key) => key !== clientId)
-        .map((key) => cache.get(key)),
-    ]
-    cache.del(clientId)
-    io.emit('updateClients', clients)    
-  })
+    console.log('Clearing client:', clientId);
+    cache.del(clientId);
+
+    clients = clients.filter((client) => client.clientId !== clientId);
+    io.emit('updateClients', filterClients()); // Emit filtered clients
+  });
 
   socket.on('colorUpdate', (data) => {
-    console.log('Color update received:', data)
-    const clientData = cache.get(data.data.clientId)
+    console.log('Color update received:', data);
+    const clientData = cache.get(data.data.clientId);
 
     if (clientData) {
-      clientData.color = data.data.color
-      cache.put(data.data.clientId, clientData)
-      io.emit('colorChange', clientData)
+      if (data.data.color) clientData.color = data.data.color;
+      if (data.data.position) clientData.position = data.data.position;
+      cache.put(data.data.clientId, clientData);
+      io.emit('colorChange', clientData);
     } else {
-      cache.put(data.data.clientId, data.data)
-      // io.emit('colorChange', data.data)
+      cache.put(data.data.clientId, data.data);
+      io.emit('colorChange', data.data);
     }
-  })
+  });
 
-  socket.on(
-    'positionUpdate',
-    (data: { clientId: string; position: number }) => {
-      console.log('Position update received:', data)
-      const clientData = cache.get(data.clientId)
-      if (clientData) {
-        clientData.position = data.position
-        cache.put(data.clientId, clientData)
-        io.emit('positionChange', clientData) // Emit the updated client data to all clients
-      }
-    }
-  )
+  socket.on('positionUpdate', (data) => {
+    console.log('Position update received:', data);
+    const clientData = cache.get(data.data.clientId);
 
-  socket.on('updateClients', (clientId: string) => {
-    if (clientId) {
-      console.log('Update clients received:', clientId)
-      let clients = [
-        ...Array.from(cache.keys())
-          // .filter((key) => key !== clientId)
-          .map((key) => cache.get(key)),
-      ]
-      
-      io.emit('updateClients', clients) // Emit the updated clients list to the emitting client
-      socket.emit('updateClients', clients) // Emit the updated clients list to the emitting client
-      socket.send('updateClients', clients) // Emit the updated clients list to the emitting client
-      socket.broadcast.emit('updateClients', clients) // Emit the updated clients list to all other clients
+    if (clientData) {
+      clientData.position = data.data.position;
+      cache.put(data.data.clientId, clientData);
+      io.emit('positionChange', clientData);
     }
-  })
+  });
 
   socket.on('disconnect', () => {
-    console.log('A client disconnected:', socket.id)
-  })
+    console.log('A client disconnected:', socket.id);
+  });
 
   socket.on('message', (e: any) => {
-    console.log('GotData:', e)
-    io.emit('GotData:', e)
-  })
-})
+    console.log('GotData:', e);
+    io.emit('GotData:', e);
+  });
+});
 
-const PORT = 4000
+function filterClients(): ClientData[] {
+  return clients.filter((client) => client.clientId !== 'droneClientId' && client.clientId !== 'Blade');
+}
+
+const PORT = 4000;
 
 server.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`)
-})
+  console.log(`Server is running on port ${PORT}`);
+});
