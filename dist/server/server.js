@@ -14,30 +14,57 @@ const io = new socket_io_1.Server(server, {
     },
     transports: ['websocket'], // Enable only WebSocket transport
 });
+function getRandomColor() {
+    const letters = '0123456789ABCDEF';
+    let color = '#';
+    for (let i = 0; i < 6; i++) {
+        color += letters[Math.floor(Math.random() * 16)];
+    }
+    return color;
+}
 io.on('connection', (socket) => {
     console.log('A client connected:', socket.id);
     socket.on('register', (clientId) => {
         console.log('Client registered:', clientId);
         socket.join(clientId);
         io.to(clientId).emit('hello'); // Send 'hello' event to the client
+        const previousState = memory_cache_1.default.get(clientId);
         memory_cache_1.default.put(clientId, {
-            color: 'white',
+            clientId,
+            color: previousState?.color || getRandomColor(),
             position: null,
         });
+        let clients = [
+            ...Array.from(memory_cache_1.default.keys())
+                .map((key) => memory_cache_1.default.get(key)),
+        ];
+        io.emit('updateClients', clients);
+    });
+    socket.on('clearAll', () => {
+        console.log('clearAll Clients:');
+        memory_cache_1.default.clear();
+        io.emit('updateClients', []);
+    });
+    socket.on('clearClient', (clientId) => {
+        console.log('clearAll Clients:');
+        let clients = [
+            ...Array.from(memory_cache_1.default.keys())
+                .filter((key) => key !== clientId)
+                .map((key) => memory_cache_1.default.get(key)),
+        ];
+        memory_cache_1.default.del(clientId);
+        io.emit('updateClients', clients);
     });
     socket.on('colorUpdate', (data) => {
         console.log('Color update received:', data);
         const clientData = memory_cache_1.default.get(data.data.clientId);
-        console.log('wtf', memory_cache_1.default.keys(), clientData, data);
         if (clientData) {
             clientData.color = data.data.color;
             memory_cache_1.default.put(data.data.clientId, clientData);
-            console.log('wtf', memory_cache_1.default.keys(), clientData);
             io.emit('colorChange', clientData);
         }
         else {
             memory_cache_1.default.put(data.data.clientId, data.data);
-            console.log(1, memory_cache_1.default.keys());
             // io.emit('colorChange', data.data)
         }
     });
@@ -58,7 +85,6 @@ io.on('connection', (socket) => {
                     // .filter((key) => key !== clientId)
                     .map((key) => memory_cache_1.default.get(key)),
             ];
-            console.log('yy', clients, clientId, memory_cache_1.default.keys());
             io.emit('updateClients', clients); // Emit the updated clients list to the emitting client
             socket.emit('updateClients', clients); // Emit the updated clients list to the emitting client
             socket.send('updateClients', clients); // Emit the updated clients list to the emitting client

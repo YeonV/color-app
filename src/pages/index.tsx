@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { io, Socket } from 'socket.io-client'
-import axios from 'axios'
 import styles from './styles.module.css' // Import CSS module styles
 import cache from 'memory-cache'
 
@@ -62,7 +61,7 @@ const Home = ({
 
     socket.on('updateClients', (updatedClients: ClientData[]) => {
       console.log('Received updated client positions:', updatedClients)
-      if (isMounted && updatedClients.length > 0) {
+      if (isMounted) {
         setClients(updatedClients)
       }
     })
@@ -91,28 +90,8 @@ const Home = ({
 
   useEffect(() => {
     const fetchData = async () => {
-      // try {
-      //   await axios.post('/api/register', {
-      //     clientId: innerClientId,
-      //     isDrone: false,
-      //   })
-      //   console.log('Client registered successfully')
-      // } catch (error) {
-      //   console.error('Failed to register client:', error)
-      // }
-
-      console.log("PLZ-INDEX", clientsyz)
-      // try {
-      //   const response = await axios.get<ClientData[]>('/api/getclients')
-      //   const clientsres = response.data
-      //   console.log('Client positions:', clientsres)
-      //   if (clientsres.length) setClients(clientsres)
-      //   s.current?.emit('updateClients', innerClientId)
-      // } catch (error) {
-      //   console.error('Failed to get client positions:', error)
-      // }
+      s.current?.emit('register', innerClientId)
     }
-
     fetchData()
   }, [innerClientId])
 
@@ -136,26 +115,8 @@ const Home = ({
     setMessage('')
   }
 
-  // const clearClients = async () => {
-  //   try {
-  //     await axios.post('/api/clearclients')
-  //     setClients([])
-  //     console.log('Cleared all clients')
-  //   } catch (error) {
-  //     console.error('Failed to clear clients:', error)
-  //   }
-  // }
-
   const clearClient = async (clientId: string) => {
-    // try {
-    //   await axios.post('/api/clearclient', { clientId })
-    //   setClients((prevClients) =>
-    //     prevClients.filter((client) => client.clientId !== clientId)
-    //   )
-    //   console.log(`Cleared client with ID: ${clientId}`)
-    // } catch (error) {
-    //   console.error('Failed to clear client:', error)
-    // }
+    s.current?.emit('clearClient', clientId)
   }
 
   return (
@@ -178,7 +139,7 @@ const Home = ({
           </button>
         </div>
         <ul className={styles.clientList}>
-          {clients.map((client) => (
+          {clients.filter((c,i) => ['Blade', 'droneClientId'].indexOf(c.clientId) === -1).map((client) => (
             <li
               key={client.clientId}
               style={{ backgroundColor: client.color }}

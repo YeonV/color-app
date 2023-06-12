@@ -17,6 +17,15 @@ const io = new SocketServer(server, {
   transports: ['websocket'], // Enable only WebSocket transport
 })
 
+function getRandomColor(): string {
+  const letters = '0123456789ABCDEF'
+  let color = '#'
+  for (let i = 0; i < 6; i++) {
+    color += letters[Math.floor(Math.random() * 16)]
+  }
+  return color
+}
+
 io.on('connection', (socket) => {
   console.log('A client connected:', socket.id)
 
@@ -24,26 +33,44 @@ io.on('connection', (socket) => {
     console.log('Client registered:', clientId)
     socket.join(clientId)
     io.to(clientId).emit('hello') // Send 'hello' event to the client
-
+    const previousState = cache.get(clientId)
     cache.put(clientId, {
-      color: 'white',
+      clientId,
+      color: previousState?.color || getRandomColor(),
       position: null,
     })
+    let clients = [
+      ...Array.from(cache.keys())
+        .map((key) => cache.get(key)),
+    ]
+    io.emit('updateClients', clients)
+  })
+  socket.on('clearAll', () => {
+    console.log('clearAll Clients:')
+    cache.clear()
+    io.emit('updateClients', [])
+  })
+  socket.on('clearClient', (clientId: string) => {
+    console.log('clearAll Clients:')
+    let clients = [
+      ...Array.from(cache.keys())
+        .filter((key) => key !== clientId)
+        .map((key) => cache.get(key)),
+    ]
+    cache.del(clientId)
+    io.emit('updateClients', clients)    
   })
 
   socket.on('colorUpdate', (data) => {
     console.log('Color update received:', data)
     const clientData = cache.get(data.data.clientId)
 
-    console.log('wtf', cache.keys(), clientData, data)
     if (clientData) {
       clientData.color = data.data.color
       cache.put(data.data.clientId, clientData)
-      console.log('wtf', cache.keys(), clientData)
       io.emit('colorChange', clientData)
     } else {
       cache.put(data.data.clientId, data.data)
-      console.log(1, cache.keys())
       // io.emit('colorChange', data.data)
     }
   })
@@ -70,7 +97,6 @@ io.on('connection', (socket) => {
           .map((key) => cache.get(key)),
       ]
       
-      console.log('yy', clients, clientId, cache.keys())
       io.emit('updateClients', clients) // Emit the updated clients list to the emitting client
       socket.emit('updateClients', clients) // Emit the updated clients list to the emitting client
       socket.send('updateClients', clients) // Emit the updated clients list to the emitting client

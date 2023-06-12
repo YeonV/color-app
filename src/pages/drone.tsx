@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { io, Socket } from 'socket.io-client'
-import axios from 'axios'
 import styles from './styles.module.css' // Import CSS module styles
 import cache from 'memory-cache'
 
@@ -59,14 +58,13 @@ const Drone = ({
 
     socket.on('updateClients', (updatedClients: ClientData[]) => {
       console.log('Received updated client positions:', updatedClients)
-      if (isMounted && updatedClients.length > 0) {
+      if (isMounted ) {
         setClients(updatedClients)
       }
     })
     socket.on('colorChange', (clientData: ClientData) => {
       console.log('colorChange', clientData)
       if (isMounted && clientData) {
-        // setClients([...clients, clientData])
         setClients((prevClients) =>
         prevClients.map((client) =>
           client.clientId === clientData.clientId ? clientData : client
@@ -84,31 +82,10 @@ const Drone = ({
     })
 
     const fetchClients = async () => {
-      // try {
-      //   await axios.post('/api/register', {
-      //     clientId: 'droneClientId',
-      //     isDrone: false,
-      //   })
-      //   console.log('Client registered successfully')
-      // } catch (error) {
-      //   console.error('Failed to register client:', error)
-      // }
-      // try {
-      //   const response = await axios.get('/api/getclients')
-      //   const initialClients: ClientData[] = response.data
-      //   console.log('OOOOO', initialClients)
-      //   console.log('res', response)
-      //   if (isMounted && initialClients.length > 0) {
-      //     setClients(initialClients)
-      //   }
-      // } catch (error) {
-      //   console.error('Failed to fetch clients:', error)
-      // }
+      s.current?.emit('register', 'droneClientId')
     }
 
     fetchClients()
-    console.log("PLZ-drone", clientsyz)
-
 
     return () => {
       isMounted = false
@@ -117,25 +94,11 @@ const Drone = ({
   }, [])
 
   const clearClients = async () => {
-    // try {
-    //   await axios.post('/api/clearclients')
-    //   setClients([])
-    //   console.log('Cleared all clients')
-    // } catch (error) {
-    //   console.error('Failed to clear clients:', error)
-    // }
+    s.current?.emit('clearAll')
   }
 
   const clearClient = async (clientId: string) => {
-    // try {
-    //   await axios.post('/api/clearclient', { clientId })
-    //   setClients((prevClients) =>
-    //     prevClients.filter((client) => client.clientId !== clientId)
-    //   )
-    //   console.log(`Cleared client: ${clientId}`)
-    // } catch (error) {
-    //   console.error(`Failed to clear client: ${clientId}`, error)
-    // }
+    s.current?.emit('clearClient', clientId)
   }
 
   const updateColor = async (clientId: string, color: string) => {
@@ -168,7 +131,7 @@ const Drone = ({
           </button>
         </div>
         <ul className={styles.clientList}>
-          {clients.map((client, index) => (
+          {clients.filter((c,i) => ['Blade', 'droneClientId'].indexOf(c.clientId) === -1).map((client, index) => (
             <li
               className={styles.clientItem}
               key={client.clientId}
