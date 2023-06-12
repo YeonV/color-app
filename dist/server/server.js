@@ -28,15 +28,17 @@ io.on('connection', (socket) => {
     socket.on('colorUpdate', (data) => {
         console.log('Color update received:', data);
         const clientData = memory_cache_1.default.get(data.data.clientId);
+        console.log('wtf', memory_cache_1.default.keys(), clientData, data);
         if (clientData) {
             clientData.color = data.data.color;
             memory_cache_1.default.put(data.data.clientId, clientData);
-            console.log('wtf', clientData);
+            console.log('wtf', memory_cache_1.default.keys(), clientData);
             io.emit('colorChange', clientData);
         }
         else {
-            // cache.put(data.data.clientId, data.data)
-            io.emit('colorChange', data.data);
+            memory_cache_1.default.put(data.data.clientId, data.data);
+            console.log(1, memory_cache_1.default.keys());
+            // io.emit('colorChange', data.data)
         }
     });
     socket.on('positionUpdate', (data) => {
@@ -53,25 +55,9 @@ io.on('connection', (socket) => {
             console.log('Update clients received:', clientId);
             let clients = [
                 ...Array.from(memory_cache_1.default.keys())
-                    .filter((key) => key !== clientId)
+                    // .filter((key) => key !== clientId)
                     .map((key) => memory_cache_1.default.get(key)),
             ];
-            // if (clients.length < 1 && clientId) {
-            //   clients = [
-            //     {
-            //       clientId: clientId,
-            //       color: '#800000',
-            //       position: 1,
-            //     },
-            //   ]
-            // }
-            // cache.keys().map((k) =>
-            //   cache.put(k, {
-            //     clientId: k,
-            //     color: cache.get(k).color,
-            //     position: cache.get(k).position,
-            //   })
-            // )
             console.log('yy', clients, clientId, memory_cache_1.default.keys());
             io.emit('updateClients', clients); // Emit the updated clients list to the emitting client
             socket.emit('updateClients', clients); // Emit the updated clients list to the emitting client

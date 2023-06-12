@@ -34,14 +34,17 @@ io.on('connection', (socket) => {
   socket.on('colorUpdate', (data) => {
     console.log('Color update received:', data)
     const clientData = cache.get(data.data.clientId)
+
+    console.log('wtf', cache.keys(), clientData, data)
     if (clientData) {
       clientData.color = data.data.color
       cache.put(data.data.clientId, clientData)
-      console.log('wtf', clientData)
+      console.log('wtf', cache.keys(), clientData)
       io.emit('colorChange', clientData)
     } else {
-      // cache.put(data.data.clientId, data.data)
-      io.emit('colorChange', data.data)
+      cache.put(data.data.clientId, data.data)
+      console.log(1, cache.keys())
+      // io.emit('colorChange', data.data)
     }
   })
 
@@ -63,26 +66,10 @@ io.on('connection', (socket) => {
       console.log('Update clients received:', clientId)
       let clients = [
         ...Array.from(cache.keys())
-          .filter((key) => key !== clientId)
+          // .filter((key) => key !== clientId)
           .map((key) => cache.get(key)),
       ]
-      // if (clients.length < 1 && clientId) {
-      //   clients = [
-      //     {
-      //       clientId: clientId,
-      //       color: '#800000',
-      //       position: 1,
-      //     },
-      //   ]
-      // }
-
-      // cache.keys().map((k) =>
-      //   cache.put(k, {
-      //     clientId: k,
-      //     color: cache.get(k).color,
-      //     position: cache.get(k).position,
-      //   })
-      // )
+      
       console.log('yy', clients, clientId, cache.keys())
       io.emit('updateClients', clients) // Emit the updated clients list to the emitting client
       socket.emit('updateClients', clients) // Emit the updated clients list to the emitting client

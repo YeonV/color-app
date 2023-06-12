@@ -2,18 +2,48 @@ import React, { useEffect, useState, useRef } from 'react'
 import { io, Socket } from 'socket.io-client'
 import axios from 'axios'
 import styles from './styles.module.css' // Import CSS module styles
+import cache from 'memory-cache'
 
 interface ClientData {
   clientId: string
   color: string
 }
+interface Client {
+  clientId: string
+  color: string
+  position: number | null
+}
 
-const Home: React.FC = () => {
+export const getServerSideProps = () => {
+  const clients = cache
+    .keys()
+    .filter((key) => key !== 'droneClientId')
+    .filter((key) => key !== 'Blade')
+    .map((key) => {
+      const client: Client = {
+        clientId: key,
+        ...cache.get(key),
+      }
+      return client
+    })
+  return {
+    props: {
+      clientsyz: clients
+    }
+  }
+}
+
+const Home = ({
+  clientsyz
+}: {
+  clientsyz: any
+}) => {
   const [clientId, setClientId] = useState('Blade')
   const [innerClientId, setInnerClientId] = useState(clientId)
-  const [clients, setClients] = useState<ClientData[]>([])
+  const [clients, setClients] = useState<ClientData[]>(clientsyz)
   const [message, setMessage] = useState('')
   const s = useRef<Socket | null>(null)
+
 
   useEffect(() => {
     let isMounted = true
@@ -61,25 +91,26 @@ const Home: React.FC = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      try {
-        await axios.post('/api/register', {
-          clientId: innerClientId,
-          isDrone: false,
-        })
-        console.log('Client registered successfully')
-      } catch (error) {
-        console.error('Failed to register client:', error)
-      }
+      // try {
+      //   await axios.post('/api/register', {
+      //     clientId: innerClientId,
+      //     isDrone: false,
+      //   })
+      //   console.log('Client registered successfully')
+      // } catch (error) {
+      //   console.error('Failed to register client:', error)
+      // }
 
-      try {
-        const response = await axios.get<ClientData[]>('/api/getclients')
-        const clientsres = response.data
-        console.log('Client positions:', clientsres)
-        if (clientsres.length) setClients(clientsres)
-        s.current?.emit('updateClients', innerClientId)
-      } catch (error) {
-        console.error('Failed to get client positions:', error)
-      }
+      console.log("PLZ-INDEX", clientsyz)
+      // try {
+      //   const response = await axios.get<ClientData[]>('/api/getclients')
+      //   const clientsres = response.data
+      //   console.log('Client positions:', clientsres)
+      //   if (clientsres.length) setClients(clientsres)
+      //   s.current?.emit('updateClients', innerClientId)
+      // } catch (error) {
+      //   console.error('Failed to get client positions:', error)
+      // }
     }
 
     fetchData()
@@ -105,26 +136,26 @@ const Home: React.FC = () => {
     setMessage('')
   }
 
-  const clearClients = async () => {
-    try {
-      await axios.post('/api/clearclients')
-      setClients([])
-      console.log('Cleared all clients')
-    } catch (error) {
-      console.error('Failed to clear clients:', error)
-    }
-  }
+  // const clearClients = async () => {
+  //   try {
+  //     await axios.post('/api/clearclients')
+  //     setClients([])
+  //     console.log('Cleared all clients')
+  //   } catch (error) {
+  //     console.error('Failed to clear clients:', error)
+  //   }
+  // }
 
   const clearClient = async (clientId: string) => {
-    try {
-      await axios.post('/api/clearclient', { clientId })
-      setClients((prevClients) =>
-        prevClients.filter((client) => client.clientId !== clientId)
-      )
-      console.log(`Cleared client with ID: ${clientId}`)
-    } catch (error) {
-      console.error('Failed to clear client:', error)
-    }
+    // try {
+    //   await axios.post('/api/clearclient', { clientId })
+    //   setClients((prevClients) =>
+    //     prevClients.filter((client) => client.clientId !== clientId)
+    //   )
+    //   console.log(`Cleared client with ID: ${clientId}`)
+    // } catch (error) {
+    //   console.error('Failed to clear client:', error)
+    // }
   }
 
   return (
