@@ -1,12 +1,13 @@
 "use strict";
+// server.ts
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-// server.ts
 const http_1 = __importDefault(require("http"));
 const socket_io_1 = require("socket.io");
 const memory_cache_1 = __importDefault(require("memory-cache"));
+const utils_1 = require("./src/utils");
 const server = http_1.default.createServer();
 const io = new socket_io_1.Server(server, {
     cors: {
@@ -34,7 +35,7 @@ io.on('connection', (socket) => {
         const clientData = {
             clientId,
             color: previousState?.color || getRandomColor(),
-            position: previousState?.position || 0,
+            position: previousState?.position || filterClients().length + 1,
         };
         memory_cache_1.default.put(clientId, clientData);
         const index = clients.findIndex((client) => client.clientId === clientId);
@@ -76,12 +77,17 @@ io.on('connection', (socket) => {
     });
     socket.on('positionUpdate', (data) => {
         console.log('Position update received:', data);
-        const clientData = memory_cache_1.default.get(data.data.clientId);
-        if (clientData) {
-            clientData.position = data.data.position;
-            memory_cache_1.default.put(data.data.clientId, clientData);
-            io.emit('positionChange', clientData);
-        }
+        const index = filterClients().findIndex((client) => client.clientId === data.data.clientId);
+        const oldP = filterClients()[index]?.position - 1;
+        const newP = data.data.position - 1;
+        clients = filterClients();
+        clients = (0, utils_1.array_move)(clients, Math.max(oldP, 0), newP);
+        clients = clients.map((c, i) => ({
+            ...c,
+            position: i + 1
+        }));
+        console.log("not happening", clients);
+        io.emit('updateClients', filterClients());
     });
     socket.on('disconnect', () => {
         console.log('A client disconnected:', socket.id);

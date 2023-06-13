@@ -1,20 +1,20 @@
-// pages/drone.tsx
+// src/pages/drone.tsx
 
-import React, { useEffect, useState, useRef } from 'react'
-import { io, Socket } from 'socket.io-client'
-import styles from '../pages/styles.module.css'
-import cache from 'memory-cache'
+import React, { useEffect, useState, useRef } from 'react';
+import { io, Socket } from 'socket.io-client';
+import styles from '../pages/styles.module.css';
+import cache from 'memory-cache';
 
 interface ClientData {
-  clientId: string
-  color: string
-  position: number | null
+  clientId: string;
+  color: string;
+  position: number | null;
 }
 
 interface Client {
-  clientId: string
-  color: string
-  position: number | null
+  clientId: string;
+  color: string;
+  position: number | null;
 }
 
 export const getServerSideProps = () => {
@@ -26,103 +26,124 @@ export const getServerSideProps = () => {
       const client: Client = {
         clientId: key,
         ...cache.get(key),
-      }
-      return client
-    })
+      };
+      return client;
+    });
   return {
     props: {
-      clientsyz: clients
-    }
-  }
-}
+      clientsyz: clients,
+    },
+  };
+};
 
-const Drone = ({
-  clientsyz
-}: {
-  clientsyz: any
-}) => {
-  const [clients, setClients] = useState<ClientData[]>(clientsyz)
-  const s = useRef<Socket | null>(null)
+const Drone = ({ clientsyz }: { clientsyz: any }) => {
+  const [clients, setClients] = useState<ClientData[]>(clientsyz);
+  const [inputValues, setInputValues] = useState<Record<string, string>>({});
+
+  const s = useRef<Socket | null>(null);
 
   useEffect(() => {
-    let isMounted = true
+    let isMounted = true;
 
     const socket = io('localhost:4000', {
       transports: ['websocket'],
-    })
+    });
 
     if (s && socket && typeof socket !== 'undefined') {
-      s.current = socket
+      s.current = socket;
     }
 
     socket.on('connect', () => {
-      console.log('WebSocket connected')
-    })
+      console.log('WebSocket connected');
+    });
 
     socket.on('updateClients', (updatedClients: ClientData[]) => {
-      console.log('Received updated client positions:', updatedClients)
-      if (isMounted ) {
-        setClients(updatedClients)
+      console.log('Received updated client positions:', updatedClients);
+      if (isMounted) {
+        setClients(updatedClients);
       }
-    })
+    });    
+
     socket.on('colorChange', (clientData: ClientData) => {
-      console.log('colorChange', clientData)
+      console.log('colorChange', clientData);
       if (isMounted && clientData) {
         setClients((prevClients) =>
-        prevClients.map((client) =>
-          client.clientId === clientData.clientId ? clientData : client
-        )
-      )
+          prevClients.map((client) =>
+            client.clientId === clientData.clientId ? clientData : client
+          )
+        );
       }
-    })
+    });
 
     socket.on('disconnect', () => {
-      console.log('WebSocket disconnected')
-    })
+      console.log('WebSocket disconnected');
+    });
 
     socket.on('message', (e: any) => {
-      console.log('Received message:', e)
-    })
+      console.log('Received message:', e);
+    });
 
     const fetchClients = async () => {
-      s.current?.emit('register', 'droneClientId')
-    }
+      s.current?.emit('register', 'droneClientId');
+    };
 
-    fetchClients()
+    fetchClients();
 
     return () => {
-      isMounted = false
-      socket.disconnect()
-    }
-  }, [])
+      isMounted = false;
+      socket.disconnect();
+    };
+  }, []);
 
   const clearClients = async () => {
-    s.current?.emit('clearAll')
-  }
+    s.current?.emit('clearAll');
+  };
 
   const clearClient = async (clientId: string) => {
-    s.current?.emit('clearClient', clientId)
-  }
+    s.current?.emit('clearClient', clientId);
+  };
+
 
   const updateColor = async (clientId: string, color: string) => {
-    s.current?.emit('colorUpdate', { data: { clientId, color } })
+    s.current?.emit('colorUpdate', { data: { clientId, color } });
     setClients((prevClients) =>
       prevClients.map((client) =>
         client.clientId === clientId ? { ...client, color } : client
       )
-    )
-    console.log(`Updated color of client ${clientId} to ${color}`)
-  }
+    );
+    setInputValues((prevInputValues) => ({
+      ...prevInputValues,
+      [clientId]: color,
+    }));
+    console.log(`Updated color of client ${clientId} to ${color}`);
+  };
 
-  const updatePosition = async (clientId: string, position: number) => {
-    s.current?.emit('positionUpdate', { data: { clientId, position } })
-    setClients((prevClients) =>
-      prevClients.map((client) =>
-        client.clientId === clientId ? { ...client, position } : client
-      )
-    )
-    console.log(`Updated position of client ${clientId} to ${position}`)
-  }
+
+  const updatePosition = async (clientId: string, newPosition: number) => {
+    s.current?.emit('positionUpdate', {
+      data: {
+        clientId,
+        position: newPosition,
+      },
+    });
+    // setClients((prevClients) =>
+    //   prevClients.map((client) =>
+    //     client.clientId === clientId ? { ...client, position: newPosition } : client
+    //   )
+    // );
+    setInputValues((prevInputValues) => ({
+      ...prevInputValues,
+      [clientId]: newPosition.toString(),
+    }));
+    console.log(`Updated position of client ${clientId} to ${newPosition}`);
+  };
+  
+  
+  
+  
+  
+
+  
 
   return (
     <div className={styles.container}>
@@ -134,13 +155,13 @@ const Drone = ({
           </button>
         </div>
         <ul className={styles.clientList}>
-          {clients.sort((a,b) => (a.position || 0) - (b.position || 0)).map((client, index) => (
+          {clients.sort((a, b) => (a.position || 0) - (b.position || 0)).map((client, index) => (
             <li
               className={styles.clientItem}
               key={client.clientId}
-              style={{ backgroundColor: client.color }}
+              style={{ backgroundColor: client?.color }}
             >
-              <span className={styles.clientId}>{client.clientId}</span>
+              <span className={styles.clientId}>{client?.clientId}</span>
               <div
                 style={{
                   display: 'flex',
@@ -158,21 +179,19 @@ const Drone = ({
                 >
                   <input
                     className={styles.iconpicker}
-                    style={{ backgroundColor: client.color }}
-                    type='color'
-                    defaultValue={client.color}
-                    onChange={(e) =>
-                      updateColor(client.clientId, e.target.value)
-                    }
+                    style={{ backgroundColor: client?.color }}
+                    type="color"
+                    value={inputValues[client.clientId] || client.color}
+                    onChange={(e) => updateColor(client.clientId, e.target.value)}
                   />
                 </div>
                 <select
                   onChange={(e) =>
-                    updatePosition(client.clientId, JSON.parse(e.target.value))
+                    updatePosition(client.clientId, parseInt(e.target.value))
                   }
                   className={styles.button}
                   style={{ padding: '7px 16px' }}
-                  defaultValue={client.position || index + 1}
+                  value={inputValues[client.clientId] || client.position || undefined}
                 >
                   {clients.map((c, i) => (
                     <option key={i} value={i + 1}>
@@ -194,7 +213,7 @@ const Drone = ({
       </div>
       <div></div>
     </div>
-  )
-}
+  );
+};
 
-export default Drone
+export default Drone;

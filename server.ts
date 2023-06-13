@@ -1,7 +1,9 @@
 // server.ts
+
 import http from 'http';
 import { Server as SocketServer } from 'socket.io';
 import cache from 'memory-cache';
+import { array_move } from './src/utils';
 
 interface ClientData {
   clientId: string;
@@ -41,7 +43,7 @@ io.on('connection', (socket) => {
     const clientData: ClientData = {
       clientId,
       color: previousState?.color || getRandomColor(),
-      position: previousState?.position || 0,
+      position: previousState?.position || filterClients().length + 1,
     };
     cache.put(clientId, clientData);
 
@@ -87,13 +89,22 @@ io.on('connection', (socket) => {
 
   socket.on('positionUpdate', (data) => {
     console.log('Position update received:', data);
-    const clientData = cache.get(data.data.clientId);
+    const index = filterClients().findIndex((client) => client.clientId === data.data.clientId);
 
-    if (clientData) {
-      clientData.position = data.data.position;
-      cache.put(data.data.clientId, clientData);
-      io.emit('positionChange', clientData);
-    }
+    const oldP = filterClients()[index]?.position! - 1 
+    const newP = data.data.position - 1
+    
+    
+    clients = filterClients()
+    clients = array_move(clients, Math.max(oldP, 0), newP)
+    
+    clients = clients.map((c,i) => ({
+      ...c,
+      position: i + 1
+    }))
+    console.log("not happening", clients)
+    io.emit('updateClients', filterClients());
+    
   });
 
   socket.on('disconnect', () => {
