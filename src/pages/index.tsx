@@ -1,95 +1,213 @@
-// index.tsx
+// pages/index.tsx
 
-import React, { useEffect, useState } from 'react'
-import axios from 'axios'
+// ClientS
+
+import React, { useEffect, useState, useRef } from 'react'
+import { io, Socket } from 'socket.io-client'
+import styles from '../pages/styles.module.css'
+import cache from 'memory-cache'
 
 interface ClientData {
   clientId: string
   color: string
   position: number | null
 }
+interface Client {
+  clientId: string
+  color: string
+  position: number | null
+}
 
-const Home: React.FC = () => {
-  const [clientId, setClientId] = useState('')
+export const getServerSideProps = () => {
+  const clients = cache
+    .keys()
+    .filter((key) => key !== 'droneClientId')
+    .filter((key) => key !== 'Blade')
+    .map((key) => {
+      const client: Client = {
+        clientId: key,
+        ...cache.get(key),
+      }
+      return client
+    })
+  return {
+    props: {
+      clientsyz: clients
+    }
+  }
+}
+
+const Home = ({
+  clientsyz
+}: {
+  clientsyz: any
+}) => {
+  const [clientId, setClientId] = useState('Blade')
   const [innerClientId, setInnerClientId] = useState(clientId)
-  const [clients, setClients] = useState<ClientData[]>([])
+  const [clients, setClients] = useState<ClientData[]>(clientsyz.filter((key: any) => key !== 'droneClientId')
+  .filter((key: any) => key !== 'Blade'))
+  const [message, setMessage] = useState('')
+  const s = useRef<Socket | null>(null)
+
 
   useEffect(() => {
-    // Register client
-    clientId !== '' &&
-      axios
-        .post('/api/register', { clientId, isDrone: false })
-        .then(() => console.log('Client registered successfully'))
-        .catch((error) => console.error('Failed to register client:', error))
+    let isMounted = true
 
-    // Get the positions of all clients
-    axios
-      .get<ClientData[]>('/api/getclients')
-      .then((response) => {
-        const clients = response.data
-        console.log('Client positions:', clients)
-        setClients(clients)
-      })
-      .catch((error) => console.error('Failed to get client positions:', error))
-  }, [clientId])
+    const socket = io('localhost:4000', {
+      transports: ['websocket'],
+    })
 
-  const updateColor = async (color: string, position: number | null) => {
-    try {
-      await axios.post('/api/setcolor', {
-        clientId: innerClientId,
-        color,
-        position,
-      })
-      console.log(`Color set to ${color} and position set to ${position}`)
-      const updatedClients = clients.map((client) =>
-        client.clientId === innerClientId
-          ? { ...client, color, position }
-          : client
+    if (s && socket && typeof socket !== 'undefined') {
+      s.current = socket
+    }
+
+    socket.on('connect', () => {
+      console.log('WebSocket connected')
+    })
+
+    socket.on('updateClients', (updatedClients: ClientData[]) => {
+      console.log('Received updated client positions:', updatedClients)
+      if (isMounted) {
+        setClients(updatedClients)
+      }
+    })
+
+    socket.on('colorChange', (updatedData: ClientData) => {
+      setClients((prevClients) =>
+        prevClients.map((client) =>
+          client.clientId === updatedData.clientId ? updatedData : client
+        )
       )
-      setClients(updatedClients)
+    })
+    socket.on('positionChange', (updatedData: ClientData) => {
+      console.log("YES",updatedData)
+      setClients((prevClients) =>
+        prevClients.map((client) =>
+          client.clientId === updatedData.clientId ? updatedData : client
+        )
+      )
+    })
+
+    socket.on('disconnect', () => {
+      console.log('WebSocket disconnected')
+    })
+
+    socket.on('message', (e: any) => {
+      console.log('Received message:', e)
+    })
+
+    return () => {
+      isMounted = false
+      socket.disconnect()
+    }
+  }, [])
+
+  useEffect(() => {
+    const fetchData = async () => {
+      s.current?.emit('register', innerClientId)
+    }
+    fetchData()
+  }, [innerClientId])
+
+  const updateColor = async (color: string) => {
+    try {
+      const updatedClients = clients.map((client) =>
+        client.clientId === innerClientId ? { ...client, color } : client
+      )
+      if (updatedClients.length > 0) setClients(updatedClients)
+      s.current?.emit('colorUpdate', {
+        data: { clientId: innerClientId, color },
+      })
+      console.log(`Color set to ${color}`)
     } catch (error) {
-      console.error('Failed to set color and position:', error)
+      console.error('Failed to set color:', error)
     }
   }
 
+  const sendMessage = () => {
+    s.current?.emit('message', message)
+    setMessage('')
+  }
+
+  const clearClient = async (clientId: string) => {
+    s.current?.emit('clearClient', clientId)
+  }
+
+  console.log(clients)
+
   return (
-    <div>
-      <h2>Client</h2>
-      <label>Client ID: </label>
-      <input
-        type='text'
-        value={innerClientId}
-        onChange={(e) => setInnerClientId(e.target.value)}
-        onBlur={(e) => setClientId(innerClientId)}
-      />
-      <br />
-      <h3>Client positions:</h3>
-      <ul>
-        {clients.map(({ clientId, color, position }) => (
-          <li
-            key={clientId}
-            style={{
-              backgroundColor: color,
-              padding: '1rem',
-              marginBottom: '0.5rem',
-              borderRadius: '4px',
-              color: '#fff',
-            }}
+    <div className={styles.container}>
+      <h2 className={styles.title}>Clients</h2>
+      <div className={styles.content}>
+        <div className={styles.inputContainer}>
+          <h3 className={styles.subtitle}>Client ID:</h3>
+          <input
+            type='text'
+            value={clientId}
+            onChange={(e) => setClientId(e.target.value)}
+            className={styles.input}
+          />
+          <button
+            className={styles.button}
+            onClick={() => setInnerClientId(clientId)}
           >
-            Client ID: {clientId}, Position: {position}
-          </li>
-        ))}
-      </ul>
-      <div>
-        <h3>Change Color and Position:</h3>
-        <button onClick={() => updateColor('red', 1)}>
-          Set Color Red, Position 1
-        </button>
-        <button onClick={() => updateColor('green', 2)}>
-          Set Color Green, Position 2
-        </button>
-        <button onClick={() => updateColor('blue', 3)}>
-          Set Color Blue, Position 3
+            Set
+          </button>
+        </div>
+        <ul className={styles.clientList}>
+          {clients.sort((a,b) => (a.position || 0) - (b.position || 0)).map((client) => (
+            <li
+              key={client.clientId}
+              style={{ backgroundColor: client.color }}
+              className={styles.clientItem}
+              onClick={()=>{
+                setInnerClientId(client.clientId)
+                setClientId(client.clientId)
+              }}
+            >
+              {client.clientId} - {client.position}
+              {innerClientId === client.clientId && (
+                <>
+                  <div className={styles.colorContainer}>
+                    <div
+                      style={{
+                        border: '2px solid #DDD',
+                        marginRight: '0.5rem',
+                        height: '28px',
+                        borderRadius: '4px',
+                      }}
+                    >
+                      <input
+                        className={styles.iconpicker}
+                        style={{ backgroundColor: client.color }}
+                        type='color'
+                        defaultValue={client.color}
+                        onChange={(e) => updateColor(e.target.value)}
+                      />
+                    </div>
+                    <button
+                      className={styles.button}
+                      onClick={() => clearClient(client.clientId)}
+                    >
+                      X
+                    </button>
+                  </div>
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className={styles.messageContainer}>
+        <h3 className={styles.subtitle}>Send Message:</h3>
+        <input
+          type='text'
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          className={styles.input}
+        />
+        <button className={styles.button} onClick={sendMessage}>
+          Send
         </button>
       </div>
     </div>

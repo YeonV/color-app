@@ -1,114 +1,219 @@
-// drone.tsx
+// src/pages/drone.tsx
 
-import React, { useEffect, useState } from 'react'
-import axios from 'axios'
+import React, { useEffect, useState, useRef } from 'react';
+import { io, Socket } from 'socket.io-client';
+import styles from '../pages/styles.module.css';
+import cache from 'memory-cache';
 
 interface ClientData {
-  clientId: string
-  color: string
-  position: number | null
+  clientId: string;
+  color: string;
+  position: number | null;
 }
 
-const Drone: React.FC = () => {
-  const droneClientId = 'droneClientId'
-  const [clients, setClients] = useState<ClientData[]>([])
+interface Client {
+  clientId: string;
+  color: string;
+  position: number | null;
+}
+
+export const getServerSideProps = () => {
+  const clients = cache
+    .keys()
+    .filter((key) => key !== 'droneClientId')
+    .filter((key) => key !== 'Blade')
+    .map((key) => {
+      const client: Client = {
+        clientId: key,
+        ...cache.get(key),
+      };
+      return client;
+    });
+  return {
+    props: {
+      clientsyz: clients,
+    },
+  };
+};
+
+const Drone = ({ clientsyz }: { clientsyz: any }) => {
+  const [clients, setClients] = useState<ClientData[]>(clientsyz);
+  const [inputValues, setInputValues] = useState<Record<string, string>>({});
+
+  const s = useRef<Socket | null>(null);
 
   useEffect(() => {
-    // Fetch the positions of all clients
-    const fetchClientPositions = async () => {
-      try {
-        const response = await axios.get<ClientData[]>('/api/getclients')
-        const clients = response.data
-        console.log('Client positions:', clients)
-        setClients(clients)
-      } catch (error) {
-        console.error('Failed to get client positions:', error)
-      }
+    let isMounted = true;
+
+    const socket = io('localhost:4000', {
+      transports: ['websocket'],
+    });
+
+    if (s && socket && typeof socket !== 'undefined') {
+      s.current = socket;
     }
 
-    // Register drone client and fetch client positions
-    axios
-      .post('/api/register', { clientId: droneClientId, isDrone: true })
-      .then(() => {
-        console.log('Drone client registered successfully')
-        fetchClientPositions()
-      })
-      .catch((error) =>
-        console.error('Failed to register drone client:', error)
-      )
+    socket.on('connect', () => {
+      console.log('WebSocket connected');
+    });
 
-    // Update individual client positions every 5 seconds
-    const interval = setInterval(async () => {
-      try {
-        for (const client of clients) {
-          const { clientId, position } = client
-          await axios.post('/api/setposition', { clientId, position })
-        }
-        fetchClientPositions()
-      } catch (error) {
-        console.error('Failed to update client positions:', error)
+    socket.on('updateClients', (updatedClients: ClientData[]) => {
+      console.log('Received updated client positions:', updatedClients);
+      if (isMounted) {
+        setClients(updatedClients);
       }
-    }, 5000)
+    });    
+
+    socket.on('colorChange', (clientData: ClientData) => {
+      console.log('colorChange', clientData);
+      if (isMounted && clientData) {
+        setClients((prevClients) =>
+          prevClients.map((client) =>
+            client.clientId === clientData.clientId ? clientData : client
+          )
+        );
+      }
+    });
+
+    socket.on('disconnect', () => {
+      console.log('WebSocket disconnected');
+    });
+
+    socket.on('message', (e: any) => {
+      console.log('Received message:', e);
+    });
+
+    const fetchClients = async () => {
+      s.current?.emit('register', 'droneClientId');
+    };
+
+    fetchClients();
 
     return () => {
-      clearInterval(interval)
-    }
-  }, [])
+      isMounted = false;
+      socket.disconnect();
+    };
+  }, []);
 
-  const updateColor = async (
-    clientId: string,
-    color: string,
-    position: number | null
-  ) => {
-    try {
-      await axios.post('/api/setcolor', {
-        clientId,
-        color,
-        position,
-      })
-      console.log(`Color set to ${color} and position set to ${position}`)
-      const updatedClients = clients.map((client) =>
-        client.clientId === clientId ? { ...client, color, position } : client
+  const clearClients = async () => {
+    s.current?.emit('clearAll');
+  };
+
+  const clearClient = async (clientId: string) => {
+    s.current?.emit('clearClient', clientId);
+  };
+
+
+  const updateColor = async (clientId: string, color: string) => {
+    s.current?.emit('colorUpdate', { data: { clientId, color } });
+    setClients((prevClients) =>
+      prevClients.map((client) =>
+        client.clientId === clientId ? { ...client, color } : client
       )
-      setClients(updatedClients)
-    } catch (error) {
-      console.error('Failed to set color and position:', error)
-    }
-  }
+    );
+    setInputValues((prevInputValues) => ({
+      ...prevInputValues,
+      [clientId]: color,
+    }));
+    console.log(`Updated color of client ${clientId} to ${color}`);
+  };
+
+
+  const updatePosition = async (clientId: string, newPosition: number) => {
+    s.current?.emit('positionUpdate', {
+      data: {
+        clientId,
+        position: newPosition,
+      },
+    });
+    // setClients((prevClients) =>
+    //   prevClients.map((client) =>
+    //     client.clientId === clientId ? { ...client, position: newPosition } : client
+    //   )
+    // );
+    setInputValues((prevInputValues) => ({
+      ...prevInputValues,
+      [clientId]: newPosition.toString(),
+    }));
+    console.log(`Updated position of client ${clientId} to ${newPosition}`);
+  };
+  
+  
+  
+  
+  
+
+  
 
   return (
-    <div>
-      <h2>Drone</h2>
-      <h3>Client positions:</h3>
-      <ul>
-        {clients.map(({ clientId, color, position }) => (
-          <li
-            key={clientId}
-            style={{
-              backgroundColor: color,
-              padding: '1rem',
-              marginBottom: '0.5rem',
-              borderRadius: '4px',
-              color: '#fff',
-            }}
-          >
-            Client ID: {clientId}, Position: {position}
-            <div>
-              <button onClick={() => updateColor(clientId, 'red', 1)}>
-                Set Color Red, Position 1
-              </button>
-              <button onClick={() => updateColor(clientId, 'green', 2)}>
-                Set Color Green, Position 2
-              </button>
-              <button onClick={() => updateColor(clientId, 'blue', 3)}>
-                Set Color Blue, Position 3
-              </button>
-            </div>
-          </li>
-        ))}
-      </ul>
+    <div className={styles.container}>
+      <h2 className={styles.title}>Control</h2>
+      <div className={styles.content}>
+        <div className={styles.inputContainer}>
+          <button className={styles.button} onClick={clearClients}>
+            Clear Clients
+          </button>
+        </div>
+        <ul className={styles.clientList}>
+          {clients.sort((a, b) => (a.position || 0) - (b.position || 0)).map((client, index) => (
+            <li
+              className={styles.clientItem}
+              key={client.clientId}
+              style={{ backgroundColor: client?.color }}
+            >
+              <span className={styles.clientId}>{client?.clientId}</span>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <div
+                  style={{
+                    border: '2px solid #DDD',
+                    marginRight: '0.5rem',
+                    height: '28px',
+                    borderRadius: '4px',
+                  }}
+                >
+                  <input
+                    className={styles.iconpicker}
+                    style={{ backgroundColor: client?.color }}
+                    type="color"
+                    value={inputValues[client.clientId] || client.color}
+                    onChange={(e) => updateColor(client.clientId, e.target.value)}
+                  />
+                </div>
+                <select
+                  onChange={(e) =>
+                    updatePosition(client.clientId, parseInt(e.target.value))
+                  }
+                  className={styles.button}
+                  style={{ padding: '7px 16px' }}
+                  value={inputValues[client.clientId] || client.position || undefined}
+                >
+                  {clients.map((c, i) => (
+                    <option key={i} value={i + 1}>
+                      {i + 1}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  className={styles.button}
+                  style={{ marginLeft: '0.5rem' }}
+                  onClick={() => clearClient(client.clientId)}
+                >
+                  X
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div></div>
     </div>
-  )
-}
+  );
+};
 
-export default Drone
+export default Drone;
