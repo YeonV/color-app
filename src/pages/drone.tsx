@@ -5,6 +5,8 @@ import { io, Socket } from 'socket.io-client'
 import styles from '../pages/styles.module.css'
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd'
 import cache from 'memory-cache'
+import { colorShades, calculateContrastColor } from '@/utils/colors'
+import ShadeGenerator from 'shade-generator'
 
 interface ClientData {
   clientId: string;
@@ -39,12 +41,21 @@ export const getServerSideProps = () => {
 
 const Drone = ({ clientsyz }: { clientsyz: any }) => {
   const [clients, setClients] = useState<ClientData[]>(clientsyz)
+  const [grid, setGrid] = useState(false)
+  const [generalColor, setGeneralColor] = useState('#800000')
+  const [shades, setShades] = useState(colorShades(generalColor, clients.length))
   const s = useRef<Socket | null>(null)
+  const colorMap = ShadeGenerator.hue('#ff0000').shadesMap('hex')
 
+  console.log('YOOO', colorMap)
+  useEffect(() => {
+    setShades(colorShades(generalColor, clients.length))  
+  }, [generalColor, clients.length])
+  
   useEffect(() => {
     let isMounted = true
 
-    const socket = io('localhost:4000', {
+    const socket = io('192.168.1.2:4000', {
       transports: ['websocket'],
     })
 
@@ -69,7 +80,7 @@ const Drone = ({ clientsyz }: { clientsyz: any }) => {
         setClients((prevClients) =>
           prevClients.map((client) =>
             client.clientId === clientData.clientId
-              ? { ...client, color: clientData.color } // Only update the color, not the position
+              ? { ...client, color: clientData.color } 
               : client
           )
         )
@@ -84,11 +95,7 @@ const Drone = ({ clientsyz }: { clientsyz: any }) => {
       console.log('Received message:', e)
     })
 
-    const fetchClients = async () => {
-      s.current?.emit('register', 'droneClientId')
-    }
-
-    fetchClients()
+    s.current?.emit('register', 'droneClientId')
 
     return () => {
       isMounted = false
@@ -113,35 +120,20 @@ const Drone = ({ clientsyz }: { clientsyz: any }) => {
       )
   
       setClients(updatedClients)
-  
       s.current?.emit('colorUpdate', {
         data: {
           clientId,
           color,
-          position: updatedClient.position, // Send the current position along with the color update
+          position: updatedClient.position, 
         },
       })
+      s.current?.emit('clientsUpdate', updatedClients)
   
       console.log(`Updated color of client ${clientId} to ${color}`)
     }
   }
   
-  
 
-  // const updatePosition = async (clientId: string, newPosition: number) => {
-  //   s.current?.emit('positionUpdate', {
-  //     data: {
-  //       clientId,
-  //       position: newPosition,
-  //     },
-  //   });
-  //   setClients((prevClients) =>
-  //     prevClients.map((client) =>
-  //       client.clientId === clientId ? { ...client, position: newPosition } : client
-  //     )
-  //   );
-  //   console.log(`Updated position of client ${clientId} to ${newPosition}`);
-  // };
   const updatePosition = async (clientId: string, newPosition: number) => {
     const clientToUpdate = clients.find((client) => client.clientId === clientId)
   
@@ -158,12 +150,11 @@ const Drone = ({ clientsyz }: { clientsyz: any }) => {
   }
 
   const onDragEnd = (result: DropResult) => {
-    if (!result.destination) {return}
-  
-    const { source, destination } = result
-  
-    if (source.index === destination.index) {return}
-  
+    if (!result.destination) {return} 
+    
+    const { source, destination } = result  
+    if (source.index === destination.index) {return} 
+
     const newClients = Array.from(clients)
     const [draggedClient] = newClients.splice(source.index, 1)
     newClients.splice(destination.index, 0, draggedClient)
@@ -174,58 +165,97 @@ const Drone = ({ clientsyz }: { clientsyz: any }) => {
     }))
   
     setClients(updatedClients)
+    s.current?.emit('clientsUpdate', updatedClients)
+
   
-    updatedClients.forEach((client, index) => {
-      if (client.clientId !== draggedClient.clientId) {
-        let newPosition = client.position
+    // updatedClients.forEach((client, index) => {
+    //   if (client.clientId !== draggedClient.clientId) {
+    //     let newPosition = client.position
   
-        if (destination.index < source.index) {
-          // Moving upwards
-          if (index >= destination.index && index < source.index) {
-            newPosition += 1
-          } else if (index >= source.index && index < destination.index) {
-            newPosition -= 1
-          }
-        } else {
-          // Moving downwards
-          if (index > source.index && index <= destination.index) {
-            newPosition -= 1
-          } else if (index > destination.index && index <= source.index) {
-            newPosition += 1
-          }
-        }
+    //     if (destination.index < source.index) {
+    //       // Moving upwards
+    //       if (index >= destination.index && index < source.index) {
+    //         newPosition += 1
+    //       } else if (index >= source.index && index < destination.index) {
+    //         newPosition -= 1
+    //       }
+    //     } else {
+    //       // Moving downwards
+    //       if (index > source.index && index <= destination.index) {
+    //         newPosition -= 1
+    //       } else if (index > destination.index && index <= source.index) {
+    //         newPosition += 1
+    //       }
+    //     }
   
-        updatePosition(client.clientId, newPosition)
-      }
-    })
-  }
-  
-    
-  
+    //     updatePosition(client.clientId, newPosition)
+    //   }
+    // })
+    // updatePosition(result.draggableId, destination.index + 1)
+  }       
   
 
   return (
-    <div className={styles.container}>
+    <div className={grid ? styles.grid : styles.container}>
       <h2 className={styles.title}>Control</h2>
       <div className={styles.content}>
         <div className={styles.inputContainer}>
           <button className={styles.button} onClick={clearClients}>
             Clear Clients
           </button>
+          <button disabled={!grid} className={styles.button} style={{ backgroundColor: !grid ? '' : 'grey', borderRadius: '4px 0 0 4px'}} onClick={()=> setGrid(false)}>
+            ☰
+          </button>
+          <button disabled={grid} className={styles.button} style={{ backgroundColor: !grid ? 'grey' : '', borderRadius: '0 4px 4px 0'}} onClick={()=> setGrid(true)}>
+            ∷
+          </button>
+          <div style={{display: 'flex', alignItems: 'center', flexGrow: 1, justifyContent: 'flex-start'}}>
+            <div
+              style={{
+                border: '0px solid #DDD',
+                margin: '0 0.5rem',
+                height: '37px',
+                borderRadius: '10px',
+                overflow: 'hidden'
+              }}
+            >
+              <input
+                className={styles.iconpicker}
+                style={{ width: grid ? '80px' : '', margin: grid ? 0 : '', height: '37px', borderRadius: '10px' }}
+                type="color"
+                value={generalColor}
+                onChange={(e) => {
+                  setGeneralColor(e.target.value)
+                  clients.map((c, i) => {
+                    updateColor(c.clientId, shades[i].hex)
+                  })
+                }}
+              />
+            </div>
+            <div style={{display: 'flex', width: '200px', border: '2px solid #FFF', boxSizing : 'border-box', opacity: 0}} onClick={()=>{
+              clients.map((c, i) => {
+                updateColor(c.clientId, shades[i].hex)
+              })
+            }}>
+              {shades.map((s:any, i: number)=><div key={i} style={{ backgroundColor: s.hex, height: 25, flex: 1}} />)}
+            </div>
+          </div>
         </div>
+        
         <DragDropContext onDragEnd={onDragEnd}>
-          <Droppable droppableId="client-list">
+          <Droppable droppableId="client-list" direction={grid ? 'horizontal' : 'vertical'}>
             {(provided) => (
-              <ul className={styles.clientList} {...provided.droppableProps} ref={provided.innerRef}>
+              <div className={styles.clientList} {...provided.droppableProps} ref={provided.innerRef}>
                 {clients.map((client, index) => (
                   <Draggable key={client.clientId} draggableId={client.clientId} index={index}>
                     {(provided) => (
-                      <li
+                      <div
                         ref={provided.innerRef}
                         {...provided.draggableProps}
                         {...provided.dragHandleProps}
                       >
-                        <div className={styles.clientItem} style={{ backgroundColor: client.color }}>
+                        <div className={styles.clientItem} 
+                          style={{ backgroundColor: client.color, color: calculateContrastColor(client.color) }}>
                           <span className={styles.clientId}>{client.clientId}</span>
                           <div
                             style={{
@@ -237,14 +267,14 @@ const Drone = ({ clientsyz }: { clientsyz: any }) => {
                             <div
                               style={{
                                 border: '2px solid #DDD',
-                                marginRight: '0.5rem',
+                                marginRight: grid ? 0 : '0.5rem',
                                 height: '28px',
                                 borderRadius: '4px',
                               }}
                             >
                               <input
                                 className={styles.iconpicker}
-                                style={{ backgroundColor: client?.color }}
+                                style={{ backgroundColor: client?.color, width: grid ? '80px' : '', margin: grid ? 0 : '' }}
                                 type="color"
                                 value={client.color}
                                 onChange={(e) => updateColor(client.clientId, e.target.value)}
@@ -255,7 +285,7 @@ const Drone = ({ clientsyz }: { clientsyz: any }) => {
                                 updatePosition(client.clientId, parseInt(e.target.value, 10))
                               }
                               className={styles.button}
-                              style={{ padding: '7px 16px' }}
+                              style={{ padding: '7px 16px', width: grid ? '89px' : '', margin: grid ? '0.25rem 0' : 0 }}
                               value={client.position || ''}
                             >
                               {clients.map((c, i) => (
@@ -264,21 +294,39 @@ const Drone = ({ clientsyz }: { clientsyz: any }) => {
                                 </option>
                               ))}
                             </select>
+                            <div style={{ display: 'flex'}}>
+                              <button
+                                disabled={client.position === 0}
+                                className={styles.button}
+                                style={{ marginLeft: grid ? 0 : '0.5rem', backgroundColor: client.position === 1 ? 'grey' : '', borderRadius: grid ? '4px 0 0 4px' : '4px' }}
+                                onClick={() => updatePosition(client.clientId, (client.position || 0) - 1)}
+                              >
+                                { grid ? '🠈' : '🠉' }
+                              </button>
+                              <button
+                                disabled={client.position === clients.length}
+                                className={styles.button}
+                                style={{ marginLeft: grid ? 0 : '0.5rem', backgroundColor: client.position === clients.length ? 'grey' : '', borderRadius: grid ? '0 4px 4px 0' : '4px'  }}
+                                onClick={() => updatePosition(client.clientId, (client.position || 0) + 1)}
+                              >
+                                { grid ? '🠊' : '🠋' }
+                              </button>
+                            </div>
                             <button
                               className={styles.button}
-                              style={{ marginLeft: '0.5rem' }}
+                              style={{ marginLeft: '0.5rem', marginTop: grid ? '0.25rem' : 0 }}
                               onClick={() => clearClient(client.clientId)}
                             >
                               X
                             </button>
                           </div>
                         </div>
-                      </li>
+                      </div>
                     )}
                   </Draggable>
                 ))}
                 {provided.placeholder}
-              </ul>
+              </div>
             )}
           </Droppable>
         </DragDropContext>

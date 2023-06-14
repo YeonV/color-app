@@ -51,7 +51,7 @@ const Home = ({
   useEffect(() => {
     let isMounted = true
 
-    const socket = io('localhost:4000', {
+    const socket = io('192.168.1.2:4000', {
       transports: ['websocket'],
     })
 
@@ -78,7 +78,7 @@ const Home = ({
       )
     })
     socket.on('positionChange', (updatedData: ClientData) => {
-      console.log("YES",updatedData)
+      console.log('YES',updatedData)
       setClients((prevClients) =>
         prevClients.map((client) =>
           client.clientId === updatedData.clientId ? updatedData : client
@@ -111,16 +111,13 @@ const Home = ({
   return (
         
     clients.filter((c,i) => c.clientId  === clientId).map((client) => (
-      <div
-        key={client.clientId}
-        style={{ backgroundColor: client.color }}
-        className={styles.container}
-      >
-        {/* {client.clientId} */}
-        
-      </div>
+      <div key={client.clientId} style={{ 
+        backgroundColor: client.color,
+        width: '100vw',
+        height: '100vh'
+      }} />
     ))
-)
+  )
 }
 
 export default Home

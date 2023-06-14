@@ -3,7 +3,7 @@
 import http from 'http'
 import { Server as SocketServer } from 'socket.io'
 import cache from 'memory-cache'
-import { array_move, getRandomColor } from './src/utils'
+import { array_move, getRandomColor } from './src/utils/helpers'
 
 interface ClientData {
   clientId: string;
@@ -64,6 +64,11 @@ io.on('connection', (socket) => {
     clients = clients.filter((client) => client.clientId !== clientId)
     io.emit('updateClients', filterClients()) // Emit filtered clients
   })
+  socket.on('clientsUpdate', (newClients: ClientData[]) => {
+    console.log('Updating client:', newClients)
+    clients = newClients
+    // io.emit('updateClients', filterClients()) // Emit filtered clients
+  })
 
   socket.on('colorUpdate', (data) => {
     console.log('Color update received:', data)
@@ -83,22 +88,22 @@ io.on('connection', (socket) => {
   socket.on('positionUpdate', (data) => {
     console.log('Position update received:', data)
 
-    const index = filterClients().findIndex((client) => client.clientId === data.data.clientId)
+    // const index = filterClients().findIndex((client) => client.clientId === data.data.clientId)
 
-    const oldP = (filterClients()[index]?.position || 0) - 1 
-    const newP = data.data.position - 1
+    // const oldP = (filterClients()[index]?.position || 0) - 1 
+    // const newP = data.data.position - 1
     
     
-    clients = filterClients()
-    clients = array_move(clients, Math.max(oldP, 0), newP)
+    // let c = filterClients().sort((a,b) => a.position! - b.position!)
+    // c = array_move(c, oldP, newP)
     
-    clients = clients.map((c,i) => ({
-      ...c,
-      position: i + 1,
-      color: cache.get(c.clientId)?.color || c.color
-    }))
-    console.log('not happening', clients)
-    io.emit('updateClients', filterClients())
+    // c = c.map((c,i) => ({
+    //   ...c,
+    //   position: i + 1,
+    //   color: cache.get(c.clientId)?.color || c.color
+    // }))
+    // console.log('not happening', c)
+    // io.emit('updateClients', c)
     
   })
 

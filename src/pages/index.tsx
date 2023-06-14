@@ -1,4 +1,4 @@
-// index.tsx
+// index.tsx (clients)
 
 import React, { useEffect, useState, useRef } from 'react'
 import { io, Socket } from 'socket.io-client'
@@ -51,7 +51,7 @@ const Home = ({
   useEffect(() => {
     let isMounted = true
 
-    const socket = io('localhost:4000', {
+    const socket = io('192.168.1.2:4000', {
       transports: ['websocket'],
     })
 
