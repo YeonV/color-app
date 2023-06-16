@@ -51,7 +51,7 @@ const Home = ({
   useEffect(() => {
     let isMounted = true
 
-    const socket = io('192.168.1.2:4000', {
+    const socket = io('localhost:4000', {
       transports: ['websocket'],
     })
 
@@ -64,6 +64,12 @@ const Home = ({
     })
 
     socket.on('updateClients', (updatedClients: ClientData[]) => {
+      console.log('Received updated client positions:', updatedClients)
+      if (isMounted) {
+        setClients(updatedClients)
+      }
+    })
+    socket.on('updatedClients', (updatedClients: ClientData[]) => {
       console.log('Received updated client positions:', updatedClients)
       if (isMounted) {
         setClients(updatedClients)

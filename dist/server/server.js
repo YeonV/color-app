@@ -54,7 +54,7 @@ io.on('connection', (socket) => {
     socket.on('clientsUpdate', (newClients) => {
         console.log('Updating client:', newClients);
         clients = newClients;
-        // io.emit('updateClients', filterClients()) // Emit filtered clients
+        io.emit('updatedClients', filterClients()); // Emit filtered clients
     });
     socket.on('colorUpdate', (data) => {
         console.log('Color update received:', data);
@@ -73,21 +73,6 @@ io.on('connection', (socket) => {
             memory_cache_1.default.put(data.data.clientId, data.data);
             io.emit('colorChange', data.data);
         }
-    });
-    socket.on('positionUpdate', (data) => {
-        console.log('Position update received:', data);
-        // const index = filterClients().findIndex((client) => client.clientId === data.data.clientId)
-        // const oldP = (filterClients()[index]?.position || 0) - 1 
-        // const newP = data.data.position - 1
-        // let c = filterClients().sort((a,b) => a.position! - b.position!)
-        // c = array_move(c, oldP, newP)
-        // c = c.map((c,i) => ({
-        //   ...c,
-        //   position: i + 1,
-        //   color: cache.get(c.clientId)?.color || c.color
-        // }))
-        // console.log('not happening', c)
-        // io.emit('updateClients', c)
     });
     socket.on('disconnect', () => {
         console.log('A client disconnected:', socket.id);

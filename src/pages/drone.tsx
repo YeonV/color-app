@@ -55,7 +55,7 @@ const Drone = ({ clientsyz }: { clientsyz: any }) => {
   useEffect(() => {
     let isMounted = true
 
-    const socket = io('192.168.1.2:4000', {
+    const socket = io('localhost:4000', {
       transports: ['websocket'],
     })
 
@@ -134,19 +134,9 @@ const Drone = ({ clientsyz }: { clientsyz: any }) => {
   }
   
 
-  const updatePosition = async (clientId: string, newPosition: number) => {
-    const clientToUpdate = clients.find((client) => client.clientId === clientId)
-  
-    if (clientToUpdate) {
-      const updatedClient = { ...clientToUpdate, position: newPosition }
-      s.current?.emit('positionUpdate', { data: updatedClient })
-  
-      setClients((prevClients) =>
-        prevClients.map((client) => (client.clientId === clientId ? updatedClient : client))
-      )
-  
-      console.log(`Updated position of client ${clientId} to ${newPosition}`)
-    }
+  const updatePosition = async (clientId: string, newPosition: number) => {    
+    const from = clients.map(e => e.clientId).indexOf(clientId)    
+    changePosition(from, newPosition - 1)   
   }
 
   const onDragEnd = (result: DropResult) => {
@@ -155,9 +145,13 @@ const Drone = ({ clientsyz }: { clientsyz: any }) => {
     const { source, destination } = result  
     if (source.index === destination.index) {return} 
 
+    changePosition(source.index, destination.index)
+  }       
+
+  const changePosition = (from: number, to: number) => {
     const newClients = Array.from(clients)
-    const [draggedClient] = newClients.splice(source.index, 1)
-    newClients.splice(destination.index, 0, draggedClient)
+    const [draggedClient] = newClients.splice(from, 1)
+    newClients.splice(to, 0, draggedClient)
   
     const updatedClients = newClients.map((client, index) => ({
       ...client,
@@ -166,33 +160,7 @@ const Drone = ({ clientsyz }: { clientsyz: any }) => {
   
     setClients(updatedClients)
     s.current?.emit('clientsUpdate', updatedClients)
-
-  
-    // updatedClients.forEach((client, index) => {
-    //   if (client.clientId !== draggedClient.clientId) {
-    //     let newPosition = client.position
-  
-    //     if (destination.index < source.index) {
-    //       // Moving upwards
-    //       if (index >= destination.index && index < source.index) {
-    //         newPosition += 1
-    //       } else if (index >= source.index && index < destination.index) {
-    //         newPosition -= 1
-    //       }
-    //     } else {
-    //       // Moving downwards
-    //       if (index > source.index && index <= destination.index) {
-    //         newPosition -= 1
-    //       } else if (index > destination.index && index <= source.index) {
-    //         newPosition += 1
-    //       }
-    //     }
-  
-    //     updatePosition(client.clientId, newPosition)
-    //   }
-    // })
-    // updatePosition(result.draggableId, destination.index + 1)
-  }       
+  }
   
 
   return (
