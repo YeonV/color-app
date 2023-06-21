@@ -1,4 +1,4 @@
-.container {
+.container, .grid  {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -9,6 +9,7 @@
     width: 100%;
     margin: 0 auto;
   }
+
 .content {
     display: flex;
     flex-direction: column;
@@ -63,6 +64,7 @@
     font-weight: bold;
     cursor: pointer;
     font-size: 14px;
+    height: 35px;
   }
   .iconpicker {
     height: 28px;
@@ -95,12 +97,17 @@
     margin: 0;
     width: 100%;
   }
+  .grid .clientList {
+    display: flex;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+  }
   
   .clientItem {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px;
     margin-bottom: 8px;
     border-radius: 4px;
     color: #fff;
@@ -110,6 +117,14 @@
     min-height: 60px;
     padding: 0 1rem;
     cursor: pointer;
+  }
+
+  .grid .clientItem {
+    flex-direction: column;
+    padding: 1rem;
+  }
+  .grid .clientItem > div{
+    flex-direction: column;
   }
   
   .colorContainer {

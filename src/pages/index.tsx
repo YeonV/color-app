@@ -1,6 +1,4 @@
-// pages/index.tsx
-
-// ClientS
+// index.tsx (clients)
 
 import React, { useEffect, useState, useRef } from 'react'
 import { io, Socket } from 'socket.io-client'
@@ -45,7 +43,7 @@ const Home = ({
   const [clientId, setClientId] = useState('Blade')
   const [innerClientId, setInnerClientId] = useState(clientId)
   const [clients, setClients] = useState<ClientData[]>(clientsyz.filter((key: any) => key !== 'droneClientId')
-  .filter((key: any) => key !== 'Blade'))
+    .filter((key: any) => key !== 'Blade'))
   const [message, setMessage] = useState('')
   const s = useRef<Socket | null>(null)
 
@@ -71,6 +69,12 @@ const Home = ({
         setClients(updatedClients)
       }
     })
+    socket.on('updatedClients', (updatedClients: ClientData[]) => {
+      console.log('Received updated client positions:', updatedClients)
+      if (isMounted) {
+        setClients(updatedClients)
+      }
+    })
 
     socket.on('colorChange', (updatedData: ClientData) => {
       setClients((prevClients) =>
@@ -80,7 +84,7 @@ const Home = ({
       )
     })
     socket.on('positionChange', (updatedData: ClientData) => {
-      console.log("YES",updatedData)
+      console.log('YES',updatedData)
       setClients((prevClients) =>
         prevClients.map((client) =>
           client.clientId === updatedData.clientId ? updatedData : client
@@ -114,7 +118,7 @@ const Home = ({
       const updatedClients = clients.map((client) =>
         client.clientId === innerClientId ? { ...client, color } : client
       )
-      if (updatedClients.length > 0) setClients(updatedClients)
+      if (updatedClients.length > 0) {setClients(updatedClients)}
       s.current?.emit('colorUpdate', {
         data: { clientId: innerClientId, color },
       })

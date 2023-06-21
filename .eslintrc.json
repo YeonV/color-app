@@ -1,3 +1,67 @@
 {
-  "extends": "next/core-web-vitals"
+  "root": true,
+  "parser": "@typescript-eslint/parser",
+  "plugins": [
+      "@typescript-eslint"
+  ],
+  "extends": [
+    "plugin:import/errors",
+    "plugin:import/warnings",
+    "plugin:import/typescript",
+    "plugin:react/recommended",
+    "plugin:react-hooks/recommended",
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:@next/next/recommended",
+    "next/core-web-vitals"
+  ],
+  "settings": {
+      "eslint-import-resolver-custom-alias": {
+          "alias": {
+              "@": "./src"
+          },
+          "extensions": [".ts", ".tsx"],
+          "packages": [
+              "packages/*"
+          ]
+      },
+      "typescript": {
+          "alwaysTryTypes": true
+      }
+  },
+  "rules": {
+      "indent": ["error", 2, { "SwitchCase": 1 }],
+      "no-var": ["error"],
+      "semi": [2, "never"],
+      "no-multiple-empty-lines": 0,
+      "no-unused-expressions": 0,
+      "padded-blocks": 0,
+      "prefer-promise-reject-errors": 0,
+      "max-len": [2, 120, 4, {
+          "ignoreComments": true,
+          "ignoreStrings": true,
+          "ignoreRegExpLiterals": true,
+          "ignoreTemplateLiterals": true
+      }],
+      "quotes": ["error", "single"],
+      "no-console": "off",
+      "quote-props": [1, "consistent-as-needed"],
+      "no-cond-assign": [2, "except-parens"],
+      "no-unused-vars": [1, { "vars": "local", "args": "none" }],
+      "radix": 1,
+      "react/no-danger": "error",
+      "eqeqeq": ["error", "always"],
+      "space-infix-ops": 1,
+      "space-before-function-paren": 0,
+      "default-case": 1,
+      "no-param-reassign": 0,
+      "curly": 2,
+      "import/no-unresolved": [2, { "ignore": ["^~/"] }],
+      "camelcase": 0,
+      "@typescript-eslint/no-non-null-assertion": 0,
+      "import/no-anonymous-default-export": 0
+  },
+  "env": {
+      "browser": true
+  }
 }
